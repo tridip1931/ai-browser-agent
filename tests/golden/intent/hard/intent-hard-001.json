@@ -1,0 +1,47 @@
+{
+  "id": "intent-hard-001",
+  "category": "intent",
+  "difficulty": "hard",
+  "description": "Completely vague task requiring clarification",
+  "task": "Do the thing",
+  "pageContext": {
+    "url": "https://example.com",
+    "title": "Example Website",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "Action A", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Action B", "visible": true },
+      { "id": "ai-target-3", "type": "a", "text": "Link C", "href": "/page-c", "visible": true },
+      { "id": "ai-target-4", "type": "input", "placeholder": "Enter text", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.2,
+      "intentClarity": 0.1,
+      "targetMatch": 0.3,
+      "valueConfidence": 0.2
+    },
+    "summary": null,
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      {
+        "question": "What action would you like me to perform?",
+        "options": [
+          { "id": "opt-1", "text": "Click Action A", "confidence": 0.3 },
+          { "id": "opt-2", "text": "Click Action B", "confidence": 0.3 },
+          { "id": "opt-3", "text": "Click Link C", "confidence": 0.2 },
+          { "id": "opt-4", "text": "Type in the text field", "confidence": 0.2 }
+        ]
+      }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.2,
+    "expectedConfidenceZone": "ask"
+  },
+  "tags": ["vague", "clarification-required", "no-intent"]
+}

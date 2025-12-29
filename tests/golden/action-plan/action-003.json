@@ -1,0 +1,46 @@
+{
+  "id": "action-003",
+  "category": "action-plan",
+  "difficulty": "hard",
+  "description": "Complex checkout flow with multiple interactions",
+  "task": "Complete the checkout with my saved payment method",
+  "pageContext": {
+    "url": "https://shop.example.com/checkout",
+    "title": "Checkout",
+    "elements": [
+      { "id": "ai-target-1", "type": "div", "text": "Shipping Address: 123 Main St", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Edit Address", "visible": true },
+      { "id": "ai-target-3", "type": "div", "text": "Payment: Visa ending 4242", "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Change Payment", "visible": true },
+      { "id": "ai-target-5", "type": "input", "name": "promo", "placeholder": "Promo Code", "visible": true },
+      { "id": "ai-target-6", "type": "button", "text": "Apply", "visible": true },
+      { "id": "ai-target-7", "type": "button", "text": "Place Order", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.85,
+      "intentClarity": 0.9,
+      "targetMatch": 0.85,
+      "valueConfidence": 0.8
+    },
+    "summary": "Complete checkout with saved payment method",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-7", "targetDescription": "Place Order button" }
+    ],
+    "assumptions": [
+      { "field": "payment method", "assumedValue": "saved card (Visa 4242)", "confidence": 0.9 },
+      { "field": "shipping address", "assumedValue": "123 Main St (displayed)", "confidence": 0.95 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": ["This will place an order and may charge your payment method"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.8,
+    "expectedConfidenceZone": "assume_announce",
+    "requiredFields": ["steps", "risks"]
+  },
+  "tags": ["checkout", "payment", "high-risk", "e-commerce"]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "intent-easy-006",
+  "category": "intent",
+  "difficulty": "easy",
+  "description": "Toggle checkbox state",
+  "task": "Check the 'Remember me' checkbox",
+  "pageContext": {
+    "url": "https://app.example.com/login",
+    "title": "Login - App",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "inputType": "text", "name": "email", "placeholder": "Email", "visible": true },
+      { "id": "ai-target-2", "type": "input", "inputType": "password", "name": "password", "placeholder": "Password", "visible": true },
+      { "id": "ai-target-3", "type": "input", "inputType": "checkbox", "name": "remember", "text": "Remember me", "checked": false, "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Sign In", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.98,
+      "intentClarity": 1.0,
+      "targetMatch": 1.0,
+      "valueConfidence": 0.95
+    },
+    "summary": "Check the Remember me checkbox",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-3", "targetDescription": "Remember me checkbox" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.95,
+    "expectedConfidenceZone": "proceed",
+    "requiredFields": ["steps"]
+  },
+  "tags": ["checkbox", "single-action", "form", "login"]
+}

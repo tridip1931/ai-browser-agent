@@ -1,6 +1,15 @@
 # AI Browser Agent
 
-AI-powered browser automation Chrome extension using a ReAct-style agent loop.
+AI-powered browser automation Chrome extension with conversational AI and confidence-based decision making.
+
+## V2 Features
+
+- **Conversational AI** — Multi-turn dialogue with clarifying questions
+- **Confidence Routing** — 3-zone system (ask/assume-announce/proceed)
+- **CDP Integration** — Real mouse/keyboard events via Chrome DevTools Protocol
+- **Mid-Execution Dialogue** — Retry, skip, replan, or abort on failures
+- **Self-Refine Loop** — Iteratively improve plans before execution
+- **Monochrome UI** — Clean design with orange accent
 
 ## Quick Start
 
@@ -32,58 +41,87 @@ The backend runs on `http://localhost:3000`. At least one API key is required:
 1. Navigate to any website (e.g., google.com)
 2. Open the AI Browser Agent side panel
 3. Type a task: "Click the first link on this page"
-4. Confirm the action when prompted
+4. Review the plan and approve
 5. Watch it work!
 
 ## How It Works
 
-The agent follows a **ReAct loop** (Reasoning + Acting):
+The agent follows a **confidence-based dialogue loop**:
 
 ```
-1. OBSERVE  → Capture interactive DOM elements
-2. REASON   → Send to LLM, get next action
-3. ACT      → Execute action (click, type, scroll)
-4. VERIFY   → Confirm success, repeat until done
+1. PLAN      → Generate action plan with confidence score
+2. ROUTE     → Based on confidence:
+               < 0.5  → Ask clarifying questions
+               0.5-0.9 → Assume + Announce (3s countdown)
+               >= 0.9 → Proceed to approval
+3. REFINE    → Self-improve plan if needed (max 3 iterations)
+4. APPROVE   → User confirms the plan
+5. EXECUTE   → Run actions via CDP (real input events)
+6. RECOVER   → On failure: retry/skip/replan/abort
 ```
 
 ## Project Structure
 
 ```
 extension/
-├── manifest.json       # Chrome MV3 manifest
-├── background.js       # Service worker (orchestration)
-├── content.js          # DOM interaction
-├── sidepanel.html/js   # Chat UI
+├── manifest.json           # Chrome MV3 manifest
+├── background.js           # Service worker (orchestration)
+├── content.js              # DOM interaction
+├── sidepanel.html/js       # Chat UI with V2 components
 └── lib/
-    ├── dom-capture.js      # Element extraction
-    ├── action-executor.js  # Action handlers
-    ├── agent-loop.js       # Main loop
-    ├── state-manager.js    # Persistence
+    ├── agent-loop.js       # V2 dialogue loop
+    ├── state-manager.js    # State machine + confidence routing
+    ├── cdp-executor.js     # Chrome DevTools Protocol actions
     ├── api-client.js       # Backend communication
-    ├── permissions.js      # Risk detection
-    ├── site-permissions.js # Per-site settings
-    └── visual-indicator.js # Orange border
+    ├── dom-capture.js      # Element extraction
+    └── action-executor.js  # Fallback action handlers
 
 backend/
-├── server.js           # Express API server
+├── server.js               # Express API server
 ├── providers/
-│   ├── anthropic.js    # Claude integration
-│   ├── openai.js       # GPT-4 integration
-│   └── ollama.js       # Local models
-├── lib/
-│   ├── prompt-builder.js   # LLM prompts
-│   └── cost-tracker.js     # Usage tracking
-└── middleware/
-    └── injection-filter.js # Security
+│   ├── anthropic.js        # Claude integration
+│   ├── openai.js           # GPT-4 integration
+│   └── ollama.js           # Local models
+└── lib/
+    └── prompt-builder.js   # V2 confidence prompts
+
+tests/
+├── golden/                 # Golden dataset (39 test cases)
+└── ...
 ```
 
 ## Security
 
 - **API keys server-side only** — Never stored in extension
 - **High-risk actions require confirmation** — Purchase, delete, publish, etc.
-- **Prompt injection filtering** — Pattern detection on backend
-- **Visual indicator** — Orange border when AI is active
-- **Per-site permissions** — Control automation per domain
+- **CDP real events** — Uses Chrome's native debugging protocol
+- **Visual indicator** — Chrome's "Started debugging" banner when active
+- **User cancel** — Click Chrome's cancel button to stop anytime
+
+## Confidence Zones
+
+| Zone | Confidence | Behavior |
+|------|------------|----------|
+| **Ask** | < 0.5 | Show clarifying questions |
+| **Assume + Announce** | 0.5 - 0.9 | Show assumptions, 3s countdown to execute |
+| **Proceed** | >= 0.9 | Go directly to plan approval |
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test suites
+npm run test:backend      # Backend unit tests
+npm run test:extension    # Extension unit tests
+npm run test:golden       # Golden dataset tests
+
+# Coverage
+npm run test:coverage
+```
+
+**Test Coverage**: 327 tests (78 backend + 210 extension + 39 golden)
 
 ## Providers
 
@@ -97,3 +135,9 @@ backend/
 
 - [ONE-PAGER.md](ONE-PAGER.md) — Technical specification
 - [CLAUDE.md](CLAUDE.md) — Development guidelines
+- [docs/](docs/) — V2 feature specifications
+- [tests/TESTING-SOP.md](tests/TESTING-SOP.md) — Manual testing procedures
+
+## License
+
+MIT

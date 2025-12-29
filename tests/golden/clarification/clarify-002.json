@@ -1,0 +1,50 @@
+{
+  "id": "clarify-002",
+  "category": "clarification",
+  "difficulty": "medium",
+  "description": "Multi-round clarification - form fields",
+  "task": "Fill the form",
+  "pageContext": {
+    "url": "https://example.com/register",
+    "title": "Registration",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "name": "username", "placeholder": "Username", "visible": true },
+      { "id": "ai-target-2", "type": "input", "name": "email", "placeholder": "Email", "visible": true },
+      { "id": "ai-target-3", "type": "input", "name": "password", "placeholder": "Password", "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Register", "visible": true }
+    ]
+  },
+  "conversationHistory": [
+    { "role": "user", "content": "Fill the form", "messageType": "task" },
+    { "role": "assistant", "content": "What username would you like to use?", "messageType": "clarification" },
+    { "role": "user", "content": "john_doe", "messageType": "clarification_answer" },
+    { "role": "assistant", "content": "What email address?", "messageType": "clarification" },
+    { "role": "user", "content": "john@example.com", "messageType": "clarification_answer" }
+  ],
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.75,
+      "intentClarity": 0.9,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.5
+    },
+    "summary": "Fill registration form with provided values",
+    "steps": [
+      { "step": 1, "action": "type", "targetId": "ai-target-1", "value": "john_doe", "targetDescription": "Username field" },
+      { "step": 2, "action": "type", "targetId": "ai-target-2", "value": "john@example.com", "targetDescription": "Email field" },
+      { "step": 3, "action": "type", "targetId": "ai-target-3", "value": "[password needed]", "targetDescription": "Password field" }
+    ],
+    "assumptions": [
+      { "field": "password", "assumedValue": "[user to provide]", "confidence": 0.3 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": ["Password not yet provided"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.7,
+    "expectedConfidenceZone": "assume_announce"
+  },
+  "tags": ["multi-round", "form", "partial-info"]
+}

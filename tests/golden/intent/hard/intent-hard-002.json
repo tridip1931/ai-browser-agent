@@ -1,0 +1,46 @@
+{
+  "id": "intent-hard-002",
+  "category": "intent",
+  "difficulty": "hard",
+  "description": "Target not found on page",
+  "task": "Click the delete button",
+  "pageContext": {
+    "url": "https://example.com/view",
+    "title": "View Item",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "Edit", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Share", "visible": true },
+      { "id": "ai-target-3", "type": "button", "text": "Save", "visible": true },
+      { "id": "ai-target-4", "type": "a", "text": "Back", "href": "/list", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.15,
+      "intentClarity": 0.9,
+      "targetMatch": 0.0,
+      "valueConfidence": 1.0
+    },
+    "summary": null,
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      {
+        "question": "I cannot find a delete button on this page. Would you like to:",
+        "options": [
+          { "id": "opt-1", "text": "Scroll down to find it", "confidence": 0.4 },
+          { "id": "opt-2", "text": "Navigate to a different page", "confidence": 0.3 },
+          { "id": "opt-3", "text": "Perform a different action", "confidence": 0.3 }
+        ]
+      }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.1,
+    "expectedConfidenceZone": "ask"
+  },
+  "tags": ["target-not-found", "clarification-required", "clear-intent"]
+}

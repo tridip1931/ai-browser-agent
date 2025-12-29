@@ -1,0 +1,48 @@
+{
+  "id": "intent-hard-003",
+  "category": "intent",
+  "difficulty": "hard",
+  "description": "Multiple valid interpretations - sign in methods",
+  "task": "Sign in",
+  "pageContext": {
+    "url": "https://example.com/login",
+    "title": "Sign In",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "Sign in with Google", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Sign in with Apple", "visible": true },
+      { "id": "ai-target-3", "type": "a", "text": "Sign in with email", "href": "/email-login", "visible": true },
+      { "id": "ai-target-4", "type": "input", "name": "email", "placeholder": "Email", "visible": true },
+      { "id": "ai-target-5", "type": "input", "name": "password", "placeholder": "Password", "visible": true, "type": "input" },
+      { "id": "ai-target-6", "type": "button", "text": "Sign In", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.35,
+      "intentClarity": 0.8,
+      "targetMatch": 0.3,
+      "valueConfidence": 0.2
+    },
+    "summary": null,
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      {
+        "question": "How would you like to sign in?",
+        "options": [
+          { "id": "opt-google", "text": "Sign in with Google", "confidence": 0.35 },
+          { "id": "opt-apple", "text": "Sign in with Apple", "confidence": 0.25 },
+          { "id": "opt-email", "text": "Sign in with email and password", "confidence": 0.4 }
+        ]
+      }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.3,
+    "expectedConfidenceZone": "ask"
+  },
+  "tags": ["multiple-options", "authentication", "clarification-required"]
+}

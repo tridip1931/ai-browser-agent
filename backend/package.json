@@ -6,7 +6,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:eval": "vitest run tests/eval",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
@@ -16,7 +20,10 @@
     "express-rate-limit": "^7.4.0",
     "openai": "^4.67.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "@vitest/coverage-v8": "^2.1.0"
+  },
   "engines": {
     "node": ">=18.0.0"
   },

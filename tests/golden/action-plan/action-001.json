@@ -1,0 +1,38 @@
+{
+  "id": "action-001",
+  "category": "action-plan",
+  "difficulty": "easy",
+  "description": "Simple single-step action plan",
+  "task": "Click the OK button",
+  "pageContext": {
+    "url": "https://example.com/dialog",
+    "title": "Confirmation",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "OK", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Cancel", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.98,
+      "intentClarity": 1.0,
+      "targetMatch": 1.0,
+      "valueConfidence": 1.0
+    },
+    "summary": "Click OK button",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-1", "targetDescription": "OK button" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.95,
+    "expectedConfidenceZone": "proceed",
+    "requiredFields": ["steps", "targetId"]
+  },
+  "tags": ["single-step", "click", "dialog"]
+}

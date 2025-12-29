@@ -1,0 +1,38 @@
+{
+  "id": "intent-hard-004",
+  "category": "intent",
+  "difficulty": "hard",
+  "description": "Task requires knowledge not on page",
+  "task": "Set my timezone",
+  "pageContext": {
+    "url": "https://app.example.com/settings",
+    "title": "Settings",
+    "elements": [
+      { "id": "ai-target-1", "type": "select", "name": "timezone", "text": "Select Timezone", "options": ["UTC-12:00", "UTC-11:00", "UTC-10:00", "UTC-09:00", "UTC-08:00", "UTC-07:00", "UTC-06:00", "UTC-05:00", "UTC-04:00", "UTC-03:00", "UTC-02:00", "UTC-01:00", "UTC+00:00", "UTC+01:00", "UTC+02:00", "UTC+03:00"], "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Save Settings", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.2,
+      "intentClarity": 0.8,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.0
+    },
+    "summary": "Cannot determine timezone without user input",
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      { "question": "Which timezone would you like to set?", "options": ["UTC-08:00 (Pacific)", "UTC-05:00 (Eastern)", "UTC+00:00 (UTC)", "UTC+01:00 (Central Europe)"] }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.8,
+    "expectedConfidenceZone": "ask",
+    "requiredFields": ["clarifyingQuestions"]
+  },
+  "tags": ["settings", "missing-value", "clarification-required", "dropdown"]
+}

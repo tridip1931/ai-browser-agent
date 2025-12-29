@@ -1,0 +1,37 @@
+{
+  "id": "intent-easy-004",
+  "category": "intent",
+  "difficulty": "easy",
+  "description": "Scroll down the page",
+  "task": "Scroll down",
+  "pageContext": {
+    "url": "https://example.com/article",
+    "title": "Long Article",
+    "elements": [
+      { "id": "ai-target-1", "type": "div", "text": "Article content...", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Share", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.95,
+      "intentClarity": 1.0,
+      "targetMatch": 1.0,
+      "valueConfidence": 0.9
+    },
+    "summary": "Scroll down the page",
+    "steps": [
+      { "step": 1, "action": "scroll", "amount": 500 }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.9,
+    "expectedConfidenceZone": "proceed"
+  },
+  "tags": ["scroll", "single-action", "no-target"]
+}

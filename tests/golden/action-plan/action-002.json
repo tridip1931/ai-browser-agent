@@ -1,0 +1,42 @@
+{
+  "id": "action-002",
+  "category": "action-plan",
+  "difficulty": "medium",
+  "description": "Multi-step login flow",
+  "task": "Login with email test@example.com and password secret123",
+  "pageContext": {
+    "url": "https://example.com/login",
+    "title": "Login",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "name": "email", "placeholder": "Email", "visible": true },
+      { "id": "ai-target-2", "type": "input", "name": "password", "placeholder": "Password", "visible": true },
+      { "id": "ai-target-3", "type": "button", "text": "Sign In", "visible": true },
+      { "id": "ai-target-4", "type": "a", "text": "Forgot Password?", "href": "/reset", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.9,
+      "intentClarity": 0.95,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.9
+    },
+    "summary": "Login with provided credentials",
+    "steps": [
+      { "step": 1, "action": "type", "targetId": "ai-target-1", "value": "test@example.com", "targetDescription": "Email field" },
+      { "step": 2, "action": "type", "targetId": "ai-target-2", "value": "secret123", "targetDescription": "Password field" },
+      { "step": 3, "action": "click", "targetId": "ai-target-3", "targetDescription": "Sign In button" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": ["Credentials will be submitted - ensure this is intended"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.85,
+    "expectedConfidenceZone": "proceed",
+    "requiredFields": ["steps", "value"]
+  },
+  "tags": ["multi-step", "login", "credentials", "form"]
+}

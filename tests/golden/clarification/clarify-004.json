@@ -1,0 +1,40 @@
+{
+  "id": "clarify-004",
+  "category": "clarification",
+  "difficulty": "medium",
+  "description": "Ambiguous target requiring clarification",
+  "task": "Click on John",
+  "pageContext": {
+    "url": "https://contacts.example.com",
+    "title": "Contacts",
+    "elements": [
+      { "id": "ai-target-1", "type": "div", "text": "John Smith - Engineering", "visible": true },
+      { "id": "ai-target-2", "type": "div", "text": "John Doe - Sales", "visible": true },
+      { "id": "ai-target-3", "type": "div", "text": "John Williams - Marketing", "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Add Contact", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.35,
+      "intentClarity": 0.8,
+      "targetMatch": 0.2,
+      "valueConfidence": 0.0
+    },
+    "summary": "Multiple contacts named John found",
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      { "question": "Which John would you like to select?", "options": ["John Smith (Engineering)", "John Doe (Sales)", "John Williams (Marketing)"] }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.8,
+    "expectedConfidenceZone": "ask",
+    "requiredFields": ["clarifyingQuestions"]
+  },
+  "tags": ["ambiguous-target", "multiple-matches", "clarification-required"]
+}

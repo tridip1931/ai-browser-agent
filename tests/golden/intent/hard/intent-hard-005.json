@@ -1,0 +1,39 @@
+{
+  "id": "intent-hard-005",
+  "category": "intent",
+  "difficulty": "hard",
+  "description": "Contradictory or nonsensical request",
+  "task": "Click the invisible button",
+  "pageContext": {
+    "url": "https://app.example.com/dashboard",
+    "title": "Dashboard",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "Settings", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Profile", "visible": true },
+      { "id": "ai-target-3", "type": "button", "text": "Logout", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.1,
+      "intentClarity": 0.3,
+      "targetMatch": 0.0,
+      "valueConfidence": 0.0
+    },
+    "summary": "Cannot identify an invisible button to click",
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      { "question": "I don't see any invisible buttons. Did you mean one of the visible buttons?", "options": ["Settings", "Profile", "Logout", "Something else"] }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.7,
+    "expectedConfidenceZone": "ask",
+    "requiredFields": ["clarifyingQuestions"]
+  },
+  "tags": ["nonsensical", "target-not-found", "clarification-required"]
+}

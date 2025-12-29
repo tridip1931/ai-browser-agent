@@ -1,0 +1,42 @@
+{
+  "id": "clarify-001",
+  "category": "clarification",
+  "difficulty": "easy",
+  "description": "Single clarification round resolves ambiguity",
+  "task": "Click the button",
+  "pageContext": {
+    "url": "https://example.com",
+    "title": "Page with buttons",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "Submit", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Cancel", "visible": true }
+    ]
+  },
+  "conversationHistory": [
+    { "role": "user", "content": "Click the button", "messageType": "task" },
+    { "role": "assistant", "content": "Which button would you like me to click?", "messageType": "clarification" },
+    { "role": "user", "content": "The Submit button", "messageType": "clarification_answer" }
+  ],
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.95,
+      "intentClarity": 1.0,
+      "targetMatch": 0.95,
+      "valueConfidence": 1.0
+    },
+    "summary": "Click the Submit button",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-1", "targetDescription": "Submit button" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.9,
+    "expectedConfidenceZone": "proceed"
+  },
+  "tags": ["single-round", "resolved", "button"]
+}

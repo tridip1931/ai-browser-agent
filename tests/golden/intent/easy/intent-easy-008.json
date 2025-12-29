@@ -1,0 +1,39 @@
+{
+  "id": "intent-easy-008",
+  "category": "intent",
+  "difficulty": "easy",
+  "description": "Clear input field",
+  "task": "Clear the search box",
+  "pageContext": {
+    "url": "https://search.example.com",
+    "title": "Search",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "inputType": "text", "name": "q", "value": "previous search", "placeholder": "Search...", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Clear", "visible": true },
+      { "id": "ai-target-3", "type": "button", "text": "Search", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.95,
+      "intentClarity": 0.95,
+      "targetMatch": 0.95,
+      "valueConfidence": 1.0
+    },
+    "summary": "Clear the search input field",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-2", "targetDescription": "Clear button" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.9,
+    "expectedConfidenceZone": "proceed",
+    "requiredFields": ["steps"]
+  },
+  "tags": ["search", "clear", "single-action", "input"]
+}

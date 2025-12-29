@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Golden Dataset Schema",
+  "description": "Schema for V2 Browser Agent evaluation golden dataset examples",
+  "definitions": {
+    "pageElement": {
+      "type": "object",
+      "required": ["id", "type", "visible"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ai-target-\\d+$" },
+        "type": { "type": "string", "enum": ["button", "input", "a", "select", "textarea", "div", "span", "form"] },
+        "text": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "name": { "type": "string" },
+        "href": { "type": "string" },
+        "visible": { "type": "boolean" },
+        "enabled": { "type": "boolean", "default": true }
+      }
+    },
+    "pageContext": {
+      "type": "object",
+      "required": ["url", "elements"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "title": { "type": "string" },
+        "elements": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/pageElement" }
+        }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "required": ["overall"],
+      "properties": {
+        "overall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "intentClarity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "targetMatch": { "type": "number", "minimum": 0, "maximum": 1 },
+        "valueConfidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "planStep": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "step": { "type": "integer", "minimum": 1 },
+        "action": { "type": "string", "enum": ["click", "type", "scroll", "hover", "select", "wait", "done"] },
+        "targetId": { "type": "string", "pattern": "^ai-target-\\d+$" },
+        "targetDescription": { "type": "string" },
+        "value": { "type": "string" },
+        "amount": { "type": "number" },
+        "duration": { "type": "number" }
+      }
+    },
+    "assumption": {
+      "type": "object",
+      "required": ["field", "assumedValue"],
+      "properties": {
+        "field": { "type": "string" },
+        "assumedValue": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "clarifyingQuestion": {
+      "type": "object",
+      "required": ["question"],
+      "properties": {
+        "question": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "text"],
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "expectedResponse": {
+      "type": "object",
+      "required": ["understood", "confidence"],
+      "properties": {
+        "understood": { "type": "boolean" },
+        "confidence": { "$ref": "#/definitions/confidence" },
+        "summary": { "type": ["string", "null"] },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/planStep" }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/assumption" }
+        },
+        "clarifyingQuestions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/clarifyingQuestion" }
+        },
+        "risks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "expectedEvaluation": {
+      "type": "object",
+      "required": ["pass"],
+      "properties": {
+        "pass": { "type": "boolean" },
+        "minScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "expectedConfidenceZone": { "type": "string", "enum": ["ask", "assume_announce", "proceed"] },
+        "requiredFields": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["id", "category", "difficulty", "task", "pageContext", "expectedResponse", "expectedEvaluation"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(intent|clarify|action)-[a-z]+-\\d{3}$",
+      "description": "Unique identifier: category-difficulty-number"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["intent", "clarification", "action-plan"]
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "medium", "hard"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this test case validates"
+    },
+    "task": {
+      "type": "string",
+      "description": "The user's task/instruction"
+    },
+    "pageContext": {
+      "$ref": "#/definitions/pageContext"
+    },
+    "conversationHistory": {
+      "type": "array",
+      "description": "Prior conversation context (for multi-turn scenarios)",
+      "items": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": { "type": "string", "enum": ["user", "assistant"] },
+          "content": { "type": "string" },
+          "messageType": { "type": "string" }
+        }
+      }
+    },
+    "expectedResponse": {
+      "$ref": "#/definitions/expectedResponse"
+    },
+    "expectedEvaluation": {
+      "$ref": "#/definitions/expectedEvaluation"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tags for filtering (e.g., 'login', 'form', 'navigation', 'edge-case')"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about this test case"
+    }
+  }
+}

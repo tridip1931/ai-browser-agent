@@ -1,0 +1,39 @@
+{
+  "id": "intent-easy-003",
+  "category": "intent",
+  "difficulty": "easy",
+  "description": "Navigate to specific page via link",
+  "task": "Go to the About page",
+  "pageContext": {
+    "url": "https://example.com",
+    "title": "Example - Home",
+    "elements": [
+      { "id": "ai-target-1", "type": "a", "text": "Home", "href": "/", "visible": true },
+      { "id": "ai-target-2", "type": "a", "text": "About", "href": "/about", "visible": true },
+      { "id": "ai-target-3", "type": "a", "text": "Contact", "href": "/contact", "visible": true },
+      { "id": "ai-target-4", "type": "a", "text": "Blog", "href": "/blog", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.98,
+      "intentClarity": 1.0,
+      "targetMatch": 1.0,
+      "valueConfidence": 1.0
+    },
+    "summary": "Navigate to the About page",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-2", "targetDescription": "About link" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.95,
+    "expectedConfidenceZone": "proceed"
+  },
+  "tags": ["navigation", "link", "single-action", "exact-match"]
+}

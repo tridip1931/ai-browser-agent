@@ -1,0 +1,38 @@
+{
+  "id": "intent-easy-005",
+  "category": "intent",
+  "difficulty": "easy",
+  "description": "Select option from dropdown",
+  "task": "Select 'United States' from the country dropdown",
+  "pageContext": {
+    "url": "https://example.com/checkout",
+    "title": "Checkout",
+    "elements": [
+      { "id": "ai-target-1", "type": "select", "name": "country", "text": "Select Country", "visible": true },
+      { "id": "ai-target-2", "type": "input", "name": "city", "placeholder": "City", "visible": true },
+      { "id": "ai-target-3", "type": "button", "text": "Continue", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.93,
+      "intentClarity": 0.95,
+      "targetMatch": 0.95,
+      "valueConfidence": 0.9
+    },
+    "summary": "Select United States from country dropdown",
+    "steps": [
+      { "step": 1, "action": "select", "targetId": "ai-target-1", "value": "United States", "targetDescription": "Country dropdown" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.9,
+    "expectedConfidenceZone": "proceed"
+  },
+  "tags": ["dropdown", "select", "single-action", "explicit-value"]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "ai-browser-agent",
+  "version": "2.0.0",
+  "description": "AI-powered browser automation Chrome extension with V2 conversational interface",
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:backend && npm run test:extension && npm run test:golden",
+    "test:backend": "cd backend && npm test",
+    "test:extension": "cd extension && npm test",
+    "test:golden": "npx vitest run tests/golden/golden-dataset.test.js",
+    "test:golden:report": "node tests/golden/runner.js",
+    "test:unit": "npm run test:unit:backend && npm run test:unit:extension",
+    "test:unit:backend": "cd backend && npm run test:unit",
+    "test:unit:extension": "cd extension && npm run test:unit",
+    "test:integration": "cd extension && npm run test:integration",
+    "test:eval": "cd backend && npm run test:eval",
+    "test:coverage": "npm run test:coverage:backend && npm run test:coverage:extension",
+    "test:coverage:backend": "cd backend && npm run test:coverage",
+    "test:coverage:extension": "cd extension && npm run test:coverage"
+  },
+  "keywords": ["chrome-extension", "ai", "browser-automation", "llm"],
+  "license": "MIT"
+}

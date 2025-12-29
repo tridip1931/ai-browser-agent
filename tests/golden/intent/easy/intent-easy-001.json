@@ -1,0 +1,38 @@
+{
+  "id": "intent-easy-001",
+  "category": "intent",
+  "difficulty": "easy",
+  "description": "Simple click on clearly identified button",
+  "task": "Click the Login button",
+  "pageContext": {
+    "url": "https://example.com",
+    "title": "Example Website",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "Login", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Sign Up", "visible": true },
+      { "id": "ai-target-3", "type": "a", "text": "Home", "href": "/", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.95,
+      "intentClarity": 1.0,
+      "targetMatch": 0.95,
+      "valueConfidence": 1.0
+    },
+    "summary": "Click the Login button",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-1", "targetDescription": "Login button" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.9,
+    "expectedConfidenceZone": "proceed"
+  },
+  "tags": ["login", "single-action", "button", "exact-match"]
+}

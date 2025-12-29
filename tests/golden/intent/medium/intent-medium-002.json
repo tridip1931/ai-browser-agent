@@ -1,0 +1,46 @@
+{
+  "id": "intent-medium-002",
+  "category": "intent",
+  "difficulty": "medium",
+  "description": "Form fill with partial information",
+  "task": "Fill out the contact form",
+  "pageContext": {
+    "url": "https://example.com/contact",
+    "title": "Contact Us",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "name": "name", "placeholder": "Your Name", "visible": true },
+      { "id": "ai-target-2", "type": "input", "name": "email", "placeholder": "Email Address", "visible": true },
+      { "id": "ai-target-3", "type": "textarea", "name": "message", "placeholder": "Your Message", "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Send Message", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.55,
+      "intentClarity": 0.8,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.2
+    },
+    "summary": "Fill contact form fields and submit",
+    "steps": [
+      { "step": 1, "action": "type", "targetId": "ai-target-1", "value": "[name]", "targetDescription": "Name field" },
+      { "step": 2, "action": "type", "targetId": "ai-target-2", "value": "[email]", "targetDescription": "Email field" },
+      { "step": 3, "action": "type", "targetId": "ai-target-3", "value": "[message]", "targetDescription": "Message field" },
+      { "step": 4, "action": "click", "targetId": "ai-target-4", "targetDescription": "Submit button" }
+    ],
+    "assumptions": [
+      { "field": "name", "assumedValue": "[user to provide]", "confidence": 0.3 },
+      { "field": "email", "assumedValue": "[user to provide]", "confidence": 0.3 },
+      { "field": "message", "assumedValue": "[user to provide]", "confidence": 0.2 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": ["Form values not specified - placeholders used"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.5,
+    "expectedConfidenceZone": "assume_announce"
+  },
+  "tags": ["form", "multi-field", "missing-values", "assumption"]
+}

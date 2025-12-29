@@ -1,0 +1,42 @@
+{
+  "id": "intent-medium-004",
+  "category": "intent",
+  "difficulty": "medium",
+  "description": "Select from radio buttons without explicit choice",
+  "task": "Choose standard shipping",
+  "pageContext": {
+    "url": "https://shop.example.com/checkout/shipping",
+    "title": "Checkout - Shipping",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "inputType": "radio", "name": "shipping", "text": "Express Shipping - $15.99 (1-2 days)", "checked": false, "visible": true },
+      { "id": "ai-target-2", "type": "input", "inputType": "radio", "name": "shipping", "text": "Standard Shipping - $5.99 (5-7 days)", "checked": false, "visible": true },
+      { "id": "ai-target-3", "type": "input", "inputType": "radio", "name": "shipping", "text": "Economy Shipping - Free (10-14 days)", "checked": false, "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Continue to Payment", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.85,
+      "intentClarity": 0.9,
+      "targetMatch": 0.8,
+      "valueConfidence": 0.9
+    },
+    "summary": "Select the Standard Shipping option",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-2", "targetDescription": "Standard Shipping radio button" }
+    ],
+    "assumptions": [
+      { "field": "shipping option", "assumedValue": "Standard Shipping ($5.99)", "confidence": 0.85 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.8,
+    "expectedConfidenceZone": "assume_announce",
+    "requiredFields": ["steps", "assumptions"]
+  },
+  "tags": ["radio", "shipping", "e-commerce", "assumption"]
+}

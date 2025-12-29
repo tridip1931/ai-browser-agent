@@ -1,0 +1,40 @@
+{
+  "id": "clarify-005",
+  "category": "clarification",
+  "difficulty": "hard",
+  "description": "Value needed for action with multiple sensible defaults",
+  "task": "Set the quantity",
+  "pageContext": {
+    "url": "https://shop.example.com/product/widget",
+    "title": "Widget Pro - Shop",
+    "elements": [
+      { "id": "ai-target-1", "type": "img", "alt": "Widget Pro product image", "visible": true },
+      { "id": "ai-target-2", "type": "div", "text": "$29.99", "visible": true },
+      { "id": "ai-target-3", "type": "input", "inputType": "number", "name": "quantity", "value": "1", "min": "1", "max": "100", "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Add to Cart", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.3,
+      "intentClarity": 0.6,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.0
+    },
+    "summary": "Need to know what quantity to set",
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      { "question": "What quantity would you like to set?", "options": ["1", "2", "5", "10"] }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.8,
+    "expectedConfidenceZone": "ask",
+    "requiredFields": ["clarifyingQuestions"]
+  },
+  "tags": ["missing-value", "quantity", "e-commerce", "clarification-required"]
+}

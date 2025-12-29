@@ -1,0 +1,40 @@
+{
+  "id": "intent-medium-001",
+  "category": "intent",
+  "difficulty": "medium",
+  "description": "Ambiguous button selection - multiple submit buttons",
+  "task": "Click the submit button",
+  "pageContext": {
+    "url": "https://example.com/form",
+    "title": "Multi-Form Page",
+    "elements": [
+      { "id": "ai-target-1", "type": "button", "text": "Submit Form", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Submit Review", "visible": true },
+      { "id": "ai-target-3", "type": "button", "text": "Cancel", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.7,
+      "intentClarity": 0.9,
+      "targetMatch": 0.5,
+      "valueConfidence": 1.0
+    },
+    "summary": "Click the Submit Form button (assuming first submit button)",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-1", "targetDescription": "Submit Form button" }
+    ],
+    "assumptions": [
+      { "field": "target", "assumedValue": "Submit Form button", "confidence": 0.7 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": ["Multiple submit buttons exist - selected first one"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.65,
+    "expectedConfidenceZone": "assume_announce"
+  },
+  "tags": ["ambiguous-target", "multiple-matches", "button", "assumption"]
+}

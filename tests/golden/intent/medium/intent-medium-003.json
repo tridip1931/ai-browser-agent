@@ -1,0 +1,42 @@
+{
+  "id": "intent-medium-003",
+  "category": "intent",
+  "difficulty": "medium",
+  "description": "Implied action from context",
+  "task": "Find information about the product",
+  "pageContext": {
+    "url": "https://shop.example.com/product/123",
+    "title": "Product XYZ - Shop",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "placeholder": "Search products", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Search", "visible": true },
+      { "id": "ai-target-3", "type": "div", "text": "Product XYZ Details", "visible": true },
+      { "id": "ai-target-4", "type": "a", "text": "Specifications", "href": "#specs", "visible": true },
+      { "id": "ai-target-5", "type": "a", "text": "Reviews", "href": "#reviews", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.65,
+      "intentClarity": 0.6,
+      "targetMatch": 0.8,
+      "valueConfidence": 0.5
+    },
+    "summary": "Navigate to product specifications or search for product info",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-4", "targetDescription": "Specifications link" }
+    ],
+    "assumptions": [
+      { "field": "information type", "assumedValue": "specifications", "confidence": 0.6 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": ["User intent unclear - assumed specifications tab"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.6,
+    "expectedConfidenceZone": "assume_announce"
+  },
+  "tags": ["vague-intent", "product", "navigation", "assumption"]
+}

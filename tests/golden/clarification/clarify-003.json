@@ -1,0 +1,47 @@
+{
+  "id": "clarify-003",
+  "category": "clarification",
+  "difficulty": "hard",
+  "description": "User provides incomplete answer requiring follow-up",
+  "task": "Book a flight",
+  "pageContext": {
+    "url": "https://flights.example.com",
+    "title": "Flight Search",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "name": "from", "placeholder": "From", "visible": true },
+      { "id": "ai-target-2", "type": "input", "name": "to", "placeholder": "To", "visible": true },
+      { "id": "ai-target-3", "type": "input", "name": "date", "placeholder": "Departure Date", "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Search Flights", "visible": true }
+    ]
+  },
+  "conversationHistory": [
+    { "role": "user", "content": "Book a flight", "messageType": "task" },
+    { "role": "assistant", "content": "Where would you like to fly from and to?", "messageType": "clarification" },
+    { "role": "user", "content": "to New York", "messageType": "clarification_answer" }
+  ],
+  "expectedResponse": {
+    "understood": false,
+    "confidence": {
+      "overall": 0.4,
+      "intentClarity": 0.7,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.3
+    },
+    "summary": null,
+    "steps": [],
+    "assumptions": [],
+    "clarifyingQuestions": [
+      {
+        "question": "Where would you like to fly from?",
+        "options": []
+      }
+    ],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.35,
+    "expectedConfidenceZone": "ask"
+  },
+  "tags": ["incomplete-answer", "follow-up-needed", "travel"]
+}

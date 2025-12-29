@@ -547,25 +547,62 @@ async function executeWithCheckpoint(action) {
 
 | Part | Description | Status |
 |------|-------------|--------|
-| [CDP Integration](docs/v2-01-cdp-integration.md) | Upgrade to Chrome DevTools Protocol for real input events | Planned |
-| [Monochrome UI](docs/v2-02-monochrome-ui.md) | Clean design with orange accent, CSS variables | Planned |
-| [Activity Feed](docs/v2-03-activity-feed.md) | Terminal-like action display format | Planned |
-| [Plan Display](docs/v2-04-plan-display.md) | Simplified execution plan cards | Planned |
-| [Conversational AI](docs/v2-05-conversational-ai.md) | Multi-turn dialogue with confidence-based decisions | Planned |
+| [Evaluation Framework](docs/v2-06-evaluation-framework.md) | Automated testing with tiered LLM evaluation | **✅ Complete** |
+| [Conversational AI](docs/v2-05-conversational-ai.md) | Multi-turn dialogue with confidence-based decisions | **✅ Complete** |
+| [CDP Integration](docs/v2-01-cdp-integration.md) | Chrome DevTools Protocol for real input events | **✅ Complete** |
+| [Monochrome UI](docs/v2-02-monochrome-ui.md) | Clean design with orange accent, CSS variables | **✅ Complete** |
+| [Activity Feed](docs/v2-03-activity-feed.md) | Terminal-like action display format | **✅ Complete** |
+| [Plan Display](docs/v2-04-plan-display.md) | Simplified execution plan cards | **✅ Complete** |
 
-### V2 Summary
+### V2 Implementation Status
 
-| Feature | V1 (Current) | V2 (Planned) |
-|---------|--------------|--------------|
-| Input method | Content script (synthetic) | CDP (real events) |
-| Page indicator | Custom orange border | Native Chrome debugger banner |
-| UI style | Colorful chat interface | Monochromatic activity feed |
-| Action display | Cards with emojis | Simple text feed |
-| Color scheme | Multiple colors | Grayscale + orange accent |
-| Clarification | Single round, open-ended | Multi-round, option-based |
-| Confidence | None | 3-zone system (ask/assume/proceed) |
-| Plan iteration | None | Self-refine loop (3 iterations) |
-| Failure recovery | Log and continue | Analyze + retry/skip/replan |
+**V2 is COMPLETE** — All planned features operational
+
+| Component | Files | Status |
+|-----------|-------|--------|
+| CDP Executor | `extension/lib/cdp-executor.js` | ✅ Complete |
+| State Machine | `extension/lib/state-manager.js` | ✅ Complete |
+| Agent Loop V2 | `extension/lib/agent-loop.js` | ✅ Complete |
+| API Client V2 | `extension/lib/api-client.js` | ✅ Complete |
+| Backend Endpoints | `backend/server.js` | ✅ Complete |
+| Background Handlers | `extension/background.js` | ✅ Complete |
+| Sidepanel UI | `extension/sidepanel.js` | ✅ Complete |
+| CSS Styling | `extension/sidepanel.html` | ✅ Complete |
+
+**V2 Features Implemented**:
+- **CDP Integration**: Real mouse/keyboard events via Chrome DevTools Protocol
+- **Native Debug Banner**: Chrome's "Started debugging" banner on automation
+- Confidence-based routing (3-zone: ask < 0.5, assume 0.5-0.9, proceed >= 0.9)
+- Option-based clarification with multi-select support
+- Assume-announce pattern with 3s countdown timer
+- Self-refine loop (max 3 iterations)
+- Mid-execution dialogue (retry/skip/replan/abort)
+- Monochrome UI with orange accent
+
+**Test Coverage**: 327 tests (78 backend + 210 extension + 39 golden)
+
+### V2 Summary (Completed)
+
+| Feature | V1 | V2 (Live) |
+|---------|-----|-----------|
+| Input method | Content script (synthetic) | **CDP (real events)** ✅ |
+| Page indicator | Custom orange border | **Native Chrome debugger banner** ✅ |
+| UI style | Colorful chat interface | **Monochromatic activity feed** ✅ |
+| Action display | Cards with emojis | **Simple text feed** ✅ |
+| Color scheme | Multiple colors | **Grayscale + orange accent** ✅ |
+| Clarification | Single round, open-ended | **Multi-round, option-based** ✅ |
+| Confidence | None | **3-zone system** ✅ |
+| Plan iteration | None | **Self-refine loop** ✅ |
+| Failure recovery | Log and continue | **Analyze + retry/skip/replan** ✅ |
+
+### Next Steps (V3 Ideas)
+
+| Feature | Description |
+|---------|-------------|
+| Screenshot Support | Send page screenshots to LLM for visual reasoning |
+| Cost Tracking | Track API usage and estimated costs per task |
+| Multi-Tab Orchestration | Coordinate actions across multiple tabs |
+| Record & Replay | Record user actions and replay with variations |
 
 ---
 

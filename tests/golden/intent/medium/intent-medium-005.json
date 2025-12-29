@@ -1,0 +1,44 @@
+{
+  "id": "intent-medium-005",
+  "category": "intent",
+  "difficulty": "medium",
+  "description": "Multiple similar elements with contextual clue",
+  "task": "Delete the second item",
+  "pageContext": {
+    "url": "https://todo.example.com/list",
+    "title": "My Tasks",
+    "elements": [
+      { "id": "ai-target-1", "type": "div", "text": "Buy groceries", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Delete", "ariaLabel": "Delete Buy groceries", "visible": true },
+      { "id": "ai-target-3", "type": "div", "text": "Call dentist", "visible": true },
+      { "id": "ai-target-4", "type": "button", "text": "Delete", "ariaLabel": "Delete Call dentist", "visible": true },
+      { "id": "ai-target-5", "type": "div", "text": "Review documents", "visible": true },
+      { "id": "ai-target-6", "type": "button", "text": "Delete", "ariaLabel": "Delete Review documents", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.75,
+      "intentClarity": 0.9,
+      "targetMatch": 0.6,
+      "valueConfidence": 0.8
+    },
+    "summary": "Delete the second item (Call dentist)",
+    "steps": [
+      { "step": 1, "action": "click", "targetId": "ai-target-4", "targetDescription": "Delete button for Call dentist" }
+    ],
+    "assumptions": [
+      { "field": "item to delete", "assumedValue": "Call dentist (second in list)", "confidence": 0.75 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": ["This will delete the task permanently"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.7,
+    "expectedConfidenceZone": "assume_announce",
+    "requiredFields": ["steps", "risks"]
+  },
+  "tags": ["delete", "list", "ordinal", "assumption", "high-risk"]
+}

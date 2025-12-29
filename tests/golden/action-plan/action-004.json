@@ -1,0 +1,47 @@
+{
+  "id": "action-004",
+  "category": "action-plan",
+  "difficulty": "medium",
+  "description": "Form submission with validation",
+  "task": "Sign up with email john@example.com and password Test123!",
+  "pageContext": {
+    "url": "https://app.example.com/signup",
+    "title": "Create Account",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "inputType": "email", "name": "email", "placeholder": "Email address", "visible": true },
+      { "id": "ai-target-2", "type": "input", "inputType": "password", "name": "password", "placeholder": "Password (8+ characters)", "visible": true },
+      { "id": "ai-target-3", "type": "input", "inputType": "password", "name": "confirmPassword", "placeholder": "Confirm password", "visible": true },
+      { "id": "ai-target-4", "type": "input", "inputType": "checkbox", "name": "terms", "text": "I agree to the Terms of Service", "checked": false, "visible": true },
+      { "id": "ai-target-5", "type": "button", "text": "Create Account", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.88,
+      "intentClarity": 0.95,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.85
+    },
+    "summary": "Create account with email john@example.com",
+    "steps": [
+      { "step": 1, "action": "type", "targetId": "ai-target-1", "value": "john@example.com", "targetDescription": "Email input" },
+      { "step": 2, "action": "type", "targetId": "ai-target-2", "value": "Test123!", "targetDescription": "Password input" },
+      { "step": 3, "action": "type", "targetId": "ai-target-3", "value": "Test123!", "targetDescription": "Confirm password input" },
+      { "step": 4, "action": "click", "targetId": "ai-target-4", "targetDescription": "Terms checkbox" },
+      { "step": 5, "action": "click", "targetId": "ai-target-5", "targetDescription": "Create Account button" }
+    ],
+    "assumptions": [
+      { "field": "terms acceptance", "assumedValue": "will agree to terms", "confidence": 0.8 }
+    ],
+    "clarifyingQuestions": [],
+    "risks": ["This will create an account and may send verification email"]
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.85,
+    "expectedConfidenceZone": "assume_announce",
+    "requiredFields": ["steps", "risks"]
+  },
+  "tags": ["signup", "form", "multi-step", "password", "e-commerce"]
+}

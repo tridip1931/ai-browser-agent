@@ -1,0 +1,40 @@
+{
+  "id": "action-005",
+  "category": "action-plan",
+  "difficulty": "easy",
+  "description": "Simple search action",
+  "task": "Search for 'python tutorials'",
+  "pageContext": {
+    "url": "https://learn.example.com",
+    "title": "Learning Platform",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "inputType": "text", "name": "search", "placeholder": "Search courses...", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Search", "visible": true },
+      { "id": "ai-target-3", "type": "a", "text": "Browse Categories", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.98,
+      "intentClarity": 1.0,
+      "targetMatch": 1.0,
+      "valueConfidence": 1.0
+    },
+    "summary": "Search for python tutorials",
+    "steps": [
+      { "step": 1, "action": "type", "targetId": "ai-target-1", "value": "python tutorials", "targetDescription": "Search input" },
+      { "step": 2, "action": "click", "targetId": "ai-target-2", "targetDescription": "Search button" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.95,
+    "expectedConfidenceZone": "proceed",
+    "requiredFields": ["steps"]
+  },
+  "tags": ["search", "multi-step", "exact-match"]
+}

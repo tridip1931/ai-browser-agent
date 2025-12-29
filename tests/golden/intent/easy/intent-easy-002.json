@@ -1,0 +1,39 @@
+{
+  "id": "intent-easy-002",
+  "category": "intent",
+  "difficulty": "easy",
+  "description": "Type specific text into search box",
+  "task": "Search for \"JavaScript tutorials\"",
+  "pageContext": {
+    "url": "https://google.com",
+    "title": "Google",
+    "elements": [
+      { "id": "ai-target-1", "type": "input", "placeholder": "Search", "name": "q", "visible": true },
+      { "id": "ai-target-2", "type": "button", "text": "Google Search", "visible": true },
+      { "id": "ai-target-3", "type": "button", "text": "I'm Feeling Lucky", "visible": true }
+    ]
+  },
+  "expectedResponse": {
+    "understood": true,
+    "confidence": {
+      "overall": 0.92,
+      "intentClarity": 0.95,
+      "targetMatch": 0.9,
+      "valueConfidence": 0.95
+    },
+    "summary": "Search for JavaScript tutorials",
+    "steps": [
+      { "step": 1, "action": "type", "targetId": "ai-target-1", "value": "JavaScript tutorials", "targetDescription": "Search input" },
+      { "step": 2, "action": "click", "targetId": "ai-target-2", "targetDescription": "Search button" }
+    ],
+    "assumptions": [],
+    "clarifyingQuestions": [],
+    "risks": []
+  },
+  "expectedEvaluation": {
+    "pass": true,
+    "minScore": 0.85,
+    "expectedConfidenceZone": "proceed"
+  },
+  "tags": ["search", "type", "multi-step", "quoted-value"]
+}
