@@ -778,6 +778,409 @@
       gap: 8px;
       margin-top: 12px;
     }
+
+    /* ============================================================================
+       V2: Confidence Badge
+       ============================================================================ */
+    .confidence-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 8px;
+    }
+
+    .confidence-badge.high {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .confidence-badge.medium {
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .confidence-badge.low {
+      background: var(--error-light);
+      color: var(--error);
+      border: 1px solid var(--error);
+    }
+
+    /* ============================================================================
+       V2: Assume + Announce Card
+       ============================================================================ */
+    .assume-announce-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-md);
+      max-width: 95%;
+      overflow: hidden;
+    }
+
+    .assume-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .assume-icon {
+      font-size: 16px;
+    }
+
+    .assume-list {
+      padding: 12px 16px;
+    }
+
+    .assume-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .assume-field {
+      color: var(--text-muted);
+      min-width: 80px;
+    }
+
+    .assume-value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .assume-confidence {
+      color: var(--accent);
+      font-size: 11px;
+    }
+
+    .assume-countdown {
+      padding: 12px 16px;
+      background: var(--accent-light);
+      border-top: 1px solid var(--border);
+    }
+
+    .countdown-text {
+      font-size: 12px;
+      color: var(--accent-hover);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    #countdown-seconds {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .countdown-bar {
+      height: 4px;
+      background: rgba(249, 115, 22, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .countdown-progress {
+      height: 100%;
+      width: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .assume-actions {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .assume-actions .btn {
+      flex: 1;
+    }
+
+    /* Correction UI */
+    .correction-options {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .correction-option {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+    }
+
+    .correction-option:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .correction-input-container {
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .correction-input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .correction-input:focus {
+      border-color: var(--accent);
+    }
+
+    /* ============================================================================
+       V2: Mid-Execution Dialog
+       ============================================================================ */
+    .mid-exec-dialog {
+      background: var(--bg-secondary);
+      border: 1px solid var(--error);
+      border-radius: var(--radius-md);
+      max-width: 95%;
+      overflow: hidden;
+    }
+
+    .mid-exec-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--error);
+      background: var(--error-light);
+      border-bottom: 1px solid var(--error);
+    }
+
+    .mid-exec-icon {
+      font-size: 16px;
+    }
+
+    .mid-exec-details {
+      padding: 12px 16px;
+    }
+
+    .mid-exec-error {
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .mid-exec-cause {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .mid-exec-options {
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .mid-exec-btn {
+      flex: 1;
+      min-width: calc(50% - 4px);
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .mid-exec-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .mid-exec-btn.recommended {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .mid-exec-btn.recommended:hover {
+      background: var(--accent-hover);
+    }
+
+    /* ============================================================================
+       V2: Self-Refine Progress
+       ============================================================================ */
+    .refine-progress-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      max-width: 90%;
+    }
+
+    .refine-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .refine-icon {
+      font-size: 14px;
+      animation: spin 2s linear infinite;
+    }
+
+    .refine-scores {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .score-previous {
+      color: var(--text-muted);
+    }
+
+    .score-arrow {
+      color: var(--text-muted);
+    }
+
+    .score-new {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .score-new.improved {
+      color: var(--accent);
+    }
+
+    .score-change {
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-light);
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    .refine-improvements {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .improvement-item {
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding: 2px 0;
+    }
+
+    /* ============================================================================
+       V2: Option-Based Clarification
+       ============================================================================ */
+    .clarify-card.option-based {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      max-width: 95%;
+    }
+
+    .clarify-options {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .clarify-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .clarify-option:hover {
+      border-color: var(--accent);
+    }
+
+    .clarify-option.selected {
+      background: var(--accent-light);
+      border-color: var(--accent);
+    }
+
+    .option-text {
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .option-confidence {
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-light);
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    .clarify-freeform {
+      padding: 0 16px 12px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .freeform-input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .freeform-input:focus {
+      border-color: var(--accent);
+    }
+
+    .freeform-submit {
+      padding: 10px 16px;
+    }
+
+    .clarify-submit-multi {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .clarify-submit-multi .btn {
+      width: 100%;
+    }
+
+    .clarify-submit-multi .btn:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>

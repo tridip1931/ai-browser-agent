@@ -20,7 +20,14 @@ const state = {
   messages: [],
   currentTabId: null,  // Tab this side panel is associated with
   awaitingClarification: false,  // True when waiting for user to answer clarifying questions
-  pendingPlan: null  // Store pending plan for approval
+  pendingPlan: null,  // Store pending plan for approval
+  // V2 State
+  useV2: true,  // Enable V2 conversational AI features
+  assumeAnnounceTimer: null,  // Timer for auto-execute countdown
+  assumeAnnounceSecondsLeft: 0,  // Countdown seconds remaining
+  currentMidExecFailure: null,  // Current failure being handled
+  currentConfidence: null,  // Last confidence report
+  selectedClarificationOptions: new Set()  // For multi-select clarification
 };
 
 // ============================================================================
@@ -257,7 +264,7 @@ async function handleSubmit() {
 }
 
 async function startTask(task) {
-  logDebug('SidePanel', 'Starting task', { task, tabId: state.currentTabId });
+  logDebug('SidePanel', 'Starting task', { task, tabId: state.currentTabId, useV2: state.useV2 });
 
   if (!state.currentTabId) {
     addMessage('error', 'Error: Could not determine current tab. Please refresh.');
@@ -268,11 +275,14 @@ async function startTask(task) {
   state.currentTask = task;
 
   try {
-    logDebug('SidePanel', 'Sending startTask to background');
+    // Use V2 action if enabled
+    const action = state.useV2 ? 'startTaskV2' : 'startTask';
+    logDebug('SidePanel', `Sending ${action} to background`);
+
     const response = await sendToBackground({
-      action: 'startTask',
+      action: action,
       task: task,
-      tabId: state.currentTabId  // Include tab ID
+      tabId: state.currentTabId
     });
 
     logDebug('SidePanel', 'Received response from background', response);
@@ -281,7 +291,9 @@ async function startTask(task) {
       throw new Error(response.error || 'Failed to start task');
     }
 
-    addMessage('system', 'Task started. Analyzing page...');
+    addMessage('system', state.useV2
+      ? 'Task started. Analyzing with confidence scoring...'
+      : 'Task started. Analyzing page...');
   } catch (error) {
     logDebug('SidePanel', 'Start task error', { error: error.message });
     addMessage('error', `Error: ${error.message}`);
@@ -425,12 +437,44 @@ function handleBackgroundMessage(message, sender, sendResponse) {
 
     case 'clarifyNeeded':
       logDebug('Clarify', 'Clarification needed', message.questions);
-      displayClarifyingQuestions(message.questions);
+      // V2: Check if option-based clarification
+      if (message.isOptionBased && message.options) {
+        displayOptionBasedClarification(message);
+      } else {
+        displayClarifyingQuestions(message.questions);
+      }
       break;
 
     case 'executionProgress':
       logDebug('Execution', 'Progress update', message);
       updateExecutionProgress(message);
+      break;
+
+    // ========== V2 Message Types ==========
+
+    case 'assumeAnnounce':
+      logDebug('V2', 'Assume and announce', message);
+      displayAssumeAnnounce(message);
+      break;
+
+    case 'midExecDialog':
+      logDebug('V2', 'Mid-execution dialog', message);
+      displayMidExecDialog(message);
+      break;
+
+    case 'confidenceReport':
+      logDebug('V2', 'Confidence report', message);
+      displayConfidenceIndicator(message);
+      break;
+
+    case 'selfRefineUpdate':
+      logDebug('V2', 'Self-refine update', message);
+      displaySelfRefineProgress(message);
+      break;
+
+    case 'assumeAnnounceCancelled':
+      logDebug('V2', 'Assume-announce cancelled');
+      cancelAssumeAnnounceTimer();
       break;
 
     default:
@@ -894,6 +938,523 @@ function updateExecutionProgress(progress) {
       }
     });
   }
+}
+
+// ============================================================================
+// V2: Assume + Announce Display
+// ============================================================================
+
+/**
+ * Display assume-announce UI with countdown timer
+ * Shows assumptions made and auto-executes after delay unless user corrects
+ */
+function displayAssumeAnnounce(message) {
+  hideEmptyState();
+  cancelAssumeAnnounceTimer(); // Clear any existing timer
+
+  const { assumptions, plan, autoExecuteDelay = 3000 } = message;
+
+  // Remove any existing assume-announce card
+  const existingCard = document.getElementById('assume-announce-card');
+  if (existingCard) {
+    existingCard.remove();
+  }
+
+  // Create assume-announce card
+  const card = document.createElement('div');
+  card.className = 'message agent assume-announce-card';
+  card.id = 'assume-announce-card';
+
+  const secondsTotal = Math.ceil(autoExecuteDelay / 1000);
+  state.assumeAnnounceSecondsLeft = secondsTotal;
+
+  card.innerHTML = `
+    <div class="assume-header">
+      <span class="assume-icon">💡</span>
+      <span>I'll proceed with these assumptions:</span>
+    </div>
+    <div class="assume-list">
+      ${assumptions.map(a => `
+        <div class="assume-item" data-field="${a.field}">
+          <span class="assume-field">${a.field}:</span>
+          <span class="assume-value">"${a.assumedValue}"</span>
+          <span class="assume-confidence">(${Math.round(a.confidence * 100)}%)</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="assume-countdown">
+      <span class="countdown-text">Executing in <span id="countdown-seconds">${secondsTotal}</span>s...</span>
+      <div class="countdown-bar">
+        <div class="countdown-progress" id="countdown-progress"></div>
+      </div>
+    </div>
+    <div class="assume-actions">
+      <button class="btn btn-secondary" id="correct-assumption-btn">Correct</button>
+      <button class="btn btn-danger" id="cancel-assume-btn">Cancel</button>
+    </div>
+  `;
+
+  elements.chatContainer.appendChild(card);
+  scrollToBottom();
+
+  // Attach event listeners
+  card.querySelector('#correct-assumption-btn').addEventListener('click', () => {
+    cancelAssumeAnnounceTimer();
+    showAssumptionCorrectionInput(assumptions);
+  });
+
+  card.querySelector('#cancel-assume-btn').addEventListener('click', async () => {
+    cancelAssumeAnnounceTimer();
+    card.remove();
+    addMessage('system', 'Cancelled. What would you like me to do instead?');
+    setRunningState(false);
+    await sendToBackground({
+      action: 'cancelAssumeAnnounce',
+      tabId: state.currentTabId
+    });
+  });
+
+  // Start countdown
+  startAssumeAnnounceCountdown(secondsTotal, autoExecuteDelay);
+
+  logDebug('V2', 'Assume-announce displayed', { assumptions: assumptions.length, delay: autoExecuteDelay });
+}
+
+/**
+ * Start the countdown timer for assume-announce
+ */
+function startAssumeAnnounceCountdown(seconds, totalMs) {
+  const progressBar = document.getElementById('countdown-progress');
+  const secondsDisplay = document.getElementById('countdown-seconds');
+
+  if (!progressBar || !secondsDisplay) return;
+
+  // Animate progress bar
+  progressBar.style.transition = `width ${totalMs}ms linear`;
+  progressBar.style.width = '0%';
+
+  // Update seconds countdown
+  state.assumeAnnounceTimer = setInterval(() => {
+    state.assumeAnnounceSecondsLeft--;
+    if (secondsDisplay) {
+      secondsDisplay.textContent = state.assumeAnnounceSecondsLeft;
+    }
+
+    if (state.assumeAnnounceSecondsLeft <= 0) {
+      cancelAssumeAnnounceTimer();
+    }
+  }, 1000);
+
+  // Auto-execute after delay
+  state.assumeAnnounceAutoExecute = setTimeout(async () => {
+    const card = document.getElementById('assume-announce-card');
+    if (card) {
+      card.remove();
+    }
+    addMessage('system', 'Proceeding with assumptions...');
+
+    await sendToBackground({
+      action: 'proceedWithAssumptions',
+      tabId: state.currentTabId
+    });
+  }, totalMs);
+}
+
+/**
+ * Cancel assume-announce countdown
+ */
+function cancelAssumeAnnounceTimer() {
+  if (state.assumeAnnounceTimer) {
+    clearInterval(state.assumeAnnounceTimer);
+    state.assumeAnnounceTimer = null;
+  }
+  if (state.assumeAnnounceAutoExecute) {
+    clearTimeout(state.assumeAnnounceAutoExecute);
+    state.assumeAnnounceAutoExecute = null;
+  }
+}
+
+/**
+ * Show input for correcting an assumption
+ */
+function showAssumptionCorrectionInput(assumptions) {
+  const card = document.getElementById('assume-announce-card');
+  if (!card) return;
+
+  // Replace card content with correction UI
+  card.innerHTML = `
+    <div class="assume-header">
+      <span class="assume-icon">✏️</span>
+      <span>Which assumption needs correction?</span>
+    </div>
+    <div class="correction-options">
+      ${assumptions.map((a, i) => `
+        <button class="correction-option" data-index="${i}" data-field="${a.field}">
+          ${a.field}: "${a.assumedValue}"
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  // Attach listeners to correction options
+  card.querySelectorAll('.correction-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const field = btn.dataset.field;
+      showFieldCorrectionInput(field, assumptions);
+    });
+  });
+}
+
+/**
+ * Show input for a specific field correction
+ */
+function showFieldCorrectionInput(field, assumptions) {
+  const card = document.getElementById('assume-announce-card');
+  if (!card) return;
+
+  card.innerHTML = `
+    <div class="assume-header">
+      <span class="assume-icon">✏️</span>
+      <span>What should "${field}" be?</span>
+    </div>
+    <div class="correction-input-container">
+      <input type="text" class="correction-input" id="correction-input" placeholder="Enter correct value...">
+      <button class="btn btn-primary" id="submit-correction-btn">Update</button>
+    </div>
+  `;
+
+  const input = card.querySelector('#correction-input');
+  const submitBtn = card.querySelector('#submit-correction-btn');
+
+  input.focus();
+
+  const submitCorrection = async () => {
+    const newValue = input.value.trim();
+    if (!newValue) return;
+
+    card.remove();
+    addMessage('user', `${field}: ${newValue}`);
+    addMessage('system', 'Updating plan with correction...');
+
+    await sendToBackground({
+      action: 'correctAssumption',
+      tabId: state.currentTabId,
+      field: field,
+      newValue: newValue
+    });
+  };
+
+  submitBtn.addEventListener('click', submitCorrection);
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') submitCorrection();
+  });
+}
+
+// ============================================================================
+// V2: Mid-Execution Dialog
+// ============================================================================
+
+/**
+ * Display mid-execution failure dialog with options
+ */
+function displayMidExecDialog(message) {
+  hideEmptyState();
+
+  const { failedStep, error, cause, options, suggestedAction, similarElement } = message;
+
+  state.currentMidExecFailure = message;
+
+  // Remove any existing mid-exec dialog
+  const existingDialog = document.getElementById('mid-exec-dialog');
+  if (existingDialog) {
+    existingDialog.remove();
+  }
+
+  // Create dialog card
+  const dialog = document.createElement('div');
+  dialog.className = 'message agent mid-exec-dialog';
+  dialog.id = 'mid-exec-dialog';
+
+  const optionButtons = options.map(opt => {
+    const isRecommended = opt === suggestedAction;
+    const labels = {
+      'retry': similarElement ? `Retry with "${similarElement}"` : 'Retry',
+      'skip': 'Skip this step',
+      'replan': 'Create new plan',
+      'abort': 'Stop task'
+    };
+    return `
+      <button class="mid-exec-btn ${isRecommended ? 'recommended' : ''}" data-decision="${opt}">
+        ${labels[opt] || opt}
+        ${isRecommended ? ' ✓' : ''}
+      </button>
+    `;
+  }).join('');
+
+  dialog.innerHTML = `
+    <div class="mid-exec-header">
+      <span class="mid-exec-icon">⚠️</span>
+      <span>Step ${failedStep?.step || '?'} failed</span>
+    </div>
+    <div class="mid-exec-details">
+      <div class="mid-exec-error">${error || 'Unknown error'}</div>
+      ${cause ? `<div class="mid-exec-cause">Cause: ${cause}</div>` : ''}
+    </div>
+    <div class="mid-exec-options">
+      ${optionButtons}
+    </div>
+  `;
+
+  elements.chatContainer.appendChild(dialog);
+  scrollToBottom();
+
+  // Attach event listeners
+  dialog.querySelectorAll('.mid-exec-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const decision = btn.dataset.decision;
+      dialog.remove();
+
+      const decisionMessages = {
+        'retry': 'Retrying step...',
+        'skip': 'Skipping to next step...',
+        'replan': 'Creating new plan from current state...',
+        'abort': 'Task stopped'
+      };
+      addMessage('system', decisionMessages[decision] || `Decision: ${decision}`);
+
+      if (decision === 'abort') {
+        setRunningState(false);
+      }
+
+      await sendToBackground({
+        action: 'midExecDecision',
+        tabId: state.currentTabId,
+        decision: decision
+      });
+
+      state.currentMidExecFailure = null;
+    });
+  });
+
+  logDebug('V2', 'Mid-exec dialog displayed', { failedStep, options, suggestedAction });
+}
+
+// ============================================================================
+// V2: Confidence Indicator
+// ============================================================================
+
+/**
+ * Display confidence indicator in the UI
+ */
+function displayConfidenceIndicator(message) {
+  const { overall, breakdown, recommendation } = message;
+
+  state.currentConfidence = message;
+
+  // Update or create confidence badge in header
+  let confidenceBadge = document.getElementById('confidence-badge');
+  if (!confidenceBadge) {
+    confidenceBadge = document.createElement('span');
+    confidenceBadge.id = 'confidence-badge';
+    confidenceBadge.className = 'confidence-badge';
+    elements.statusBadge.parentNode.insertBefore(confidenceBadge, elements.statusBadge.nextSibling);
+  }
+
+  const percentage = Math.round(overall * 100);
+  const level = overall >= 0.9 ? 'high' : overall >= 0.5 ? 'medium' : 'low';
+
+  confidenceBadge.className = `confidence-badge ${level}`;
+  confidenceBadge.textContent = `${percentage}%`;
+  confidenceBadge.title = `Intent: ${Math.round((breakdown?.intentClarity || 0) * 100)}% | Target: ${Math.round((breakdown?.targetMatch || 0) * 100)}% | Value: ${Math.round((breakdown?.valueConfidence || 0) * 100)}%`;
+
+  // Log but don't add chat message for every confidence update
+  logDebug('V2', 'Confidence updated', { overall, level, recommendation });
+}
+
+// ============================================================================
+// V2: Self-Refine Progress
+// ============================================================================
+
+/**
+ * Display self-refine iteration progress
+ */
+function displaySelfRefineProgress(message) {
+  const { iteration, maxIterations, previousScore, newScore, improvements } = message;
+
+  // Create or update refine progress indicator
+  let refineCard = document.getElementById('refine-progress-card');
+
+  if (!refineCard) {
+    refineCard = document.createElement('div');
+    refineCard.className = 'message system refine-progress-card';
+    refineCard.id = 'refine-progress-card';
+    elements.chatContainer.appendChild(refineCard);
+  }
+
+  const scoreImproved = newScore > previousScore;
+  const scoreChange = scoreImproved ? `↑ ${Math.round((newScore - previousScore) * 100)}%` : '';
+
+  refineCard.innerHTML = `
+    <div class="refine-header">
+      <span class="refine-icon">🔄</span>
+      <span>Refining plan (${iteration}/${maxIterations})</span>
+    </div>
+    <div class="refine-scores">
+      <span class="score-previous">${Math.round(previousScore * 100)}%</span>
+      <span class="score-arrow">→</span>
+      <span class="score-new ${scoreImproved ? 'improved' : ''}">${Math.round(newScore * 100)}%</span>
+      ${scoreChange ? `<span class="score-change">${scoreChange}</span>` : ''}
+    </div>
+    ${improvements && improvements.length > 0 ? `
+      <div class="refine-improvements">
+        ${improvements.map(imp => `<div class="improvement-item">• ${imp}</div>`).join('')}
+      </div>
+    ` : ''}
+  `;
+
+  scrollToBottom();
+  logDebug('V2', 'Refine progress displayed', { iteration, previousScore, newScore });
+}
+
+// ============================================================================
+// V2: Option-Based Clarification
+// ============================================================================
+
+/**
+ * Display option-based clarification UI
+ */
+function displayOptionBasedClarification(message) {
+  hideEmptyState();
+
+  const { question, options, allowFreeform = true, multiSelect = false } = message;
+
+  state.awaitingClarification = true;
+  state.selectedClarificationOptions.clear();
+
+  // Remove any existing clarify card
+  const existingCard = document.querySelector('.clarify-card');
+  if (existingCard) {
+    existingCard.remove();
+  }
+
+  // Create clarification card
+  const card = document.createElement('div');
+  card.className = 'message agent clarify-card option-based';
+  card.id = 'clarify-options-card';
+
+  card.innerHTML = `
+    <div class="clarify-header">${question}</div>
+    <div class="clarify-options">
+      ${options.map((opt, i) => `
+        <button class="clarify-option" data-id="${opt.id || i}" data-text="${opt.text}">
+          <span class="option-text">${opt.text}</span>
+          ${opt.confidence ? `<span class="option-confidence">${Math.round(opt.confidence * 100)}%</span>` : ''}
+        </button>
+      `).join('')}
+    </div>
+    ${allowFreeform ? `
+      <div class="clarify-freeform">
+        <input type="text" class="freeform-input" placeholder="Or type something else...">
+        <button class="btn btn-primary freeform-submit">Submit</button>
+      </div>
+    ` : ''}
+    ${multiSelect ? `
+      <div class="clarify-submit-multi">
+        <button class="btn btn-primary" id="submit-multi-btn" disabled>Submit Selection</button>
+      </div>
+    ` : ''}
+  `;
+
+  elements.chatContainer.appendChild(card);
+  scrollToBottom();
+
+  // Attach option click handlers
+  card.querySelectorAll('.clarify-option').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (multiSelect) {
+        // Toggle selection
+        btn.classList.toggle('selected');
+        const id = btn.dataset.id;
+        if (state.selectedClarificationOptions.has(id)) {
+          state.selectedClarificationOptions.delete(id);
+        } else {
+          state.selectedClarificationOptions.add(id);
+        }
+        // Enable/disable submit button
+        const submitBtn = card.querySelector('#submit-multi-btn');
+        if (submitBtn) {
+          submitBtn.disabled = state.selectedClarificationOptions.size === 0;
+        }
+      } else {
+        // Single select - submit immediately
+        const text = btn.dataset.text;
+        const id = btn.dataset.id;
+        card.remove();
+        state.awaitingClarification = false;
+        addMessage('user', text);
+        addMessage('system', 'Processing your selection...');
+
+        await sendToBackground({
+          action: 'submitClarificationV2',
+          tabId: state.currentTabId,
+          answer: text,
+          selectedOptionId: id
+        });
+      }
+    });
+  });
+
+  // Freeform input handler
+  if (allowFreeform) {
+    const freeformInput = card.querySelector('.freeform-input');
+    const freeformSubmit = card.querySelector('.freeform-submit');
+
+    const submitFreeform = async () => {
+      const value = freeformInput.value.trim();
+      if (!value) return;
+
+      card.remove();
+      state.awaitingClarification = false;
+      addMessage('user', value);
+      addMessage('system', 'Processing your answer...');
+
+      await sendToBackground({
+        action: 'submitClarificationV2',
+        tabId: state.currentTabId,
+        answer: value,
+        selectedOptionId: null
+      });
+    };
+
+    freeformSubmit.addEventListener('click', submitFreeform);
+    freeformInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') submitFreeform();
+    });
+  }
+
+  // Multi-select submit handler
+  if (multiSelect) {
+    card.querySelector('#submit-multi-btn').addEventListener('click', async () => {
+      const selectedTexts = Array.from(state.selectedClarificationOptions).map(id => {
+        const btn = card.querySelector(`[data-id="${id}"]`);
+        return btn?.dataset.text;
+      }).filter(Boolean);
+
+      card.remove();
+      state.awaitingClarification = false;
+      addMessage('user', selectedTexts.join(', '));
+      addMessage('system', 'Processing your selections...');
+
+      await sendToBackground({
+        action: 'submitClarificationV2',
+        tabId: state.currentTabId,
+        answer: selectedTexts.join(', '),
+        selectedOptionIds: Array.from(state.selectedClarificationOptions)
+      });
+    });
+  }
+
+  logDebug('V2', 'Option-based clarification displayed', { optionsCount: options.length, multiSelect });
 }
 
 console.log('[SidePanel] Script loaded');

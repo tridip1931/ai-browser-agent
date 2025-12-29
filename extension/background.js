@@ -266,6 +266,9 @@ async function handleMessage(message, sender, tabId) {
     case 'cancelAssumeAnnounce':
       return await handleCancelAssumeAnnounce(tabId);
 
+    case 'proceedWithAssumptions':
+      return await handleProceedWithAssumptions(tabId);
+
     default:
       console.warn('[Background] Unknown action:', message.action);
       return { success: false, error: `Unknown action: ${message.action}` };
@@ -1186,6 +1189,22 @@ async function handleCancelAssumeAnnounce(tabId) {
     pending.onCancel();
     pendingAssumeAnnounce.delete(tabId);
     return { success: true, message: 'Assume-announce cancelled' };
+  }
+
+  return { success: false, error: 'No pending assume-announce' };
+}
+
+/**
+ * Handle proceed with assumptions (auto-execute or user confirmed)
+ */
+async function handleProceedWithAssumptions(tabId) {
+  console.log('[Background] Proceeding with assumptions for tab', tabId);
+
+  const pending = pendingAssumeAnnounce.get(tabId);
+  if (pending && pending.onProceed) {
+    pending.onProceed();
+    pendingAssumeAnnounce.delete(tabId);
+    return { success: true, message: 'Proceeding with assumptions' };
   }
 
   return { success: false, error: 'No pending assume-announce' };
