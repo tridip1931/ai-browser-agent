@@ -12,6 +12,18 @@
 
 import { runAgentLoop, stopAgentLoop, getAgentStatus as getLoopStatus, retryWithClarification } from './lib/agent-loop.js';
 import { clearTabState } from './lib/state-manager.js';
+import {
+  attachDebugger,
+  detachDebugger,
+  isDebuggerAttached,
+  setupDebuggerDetachListener,
+  cdpClick,
+  cdpType,
+  cdpClearAndType,
+  cdpPressKey,
+  cdpScrollDown,
+  cdpScrollUp
+} from './lib/cdp-executor.js';
 
 // Track pending plan approvals by tabId
 const pendingApprovals = new Map();
@@ -97,6 +109,16 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
   // Remove from enabled tabs tracking
   enabledTabs.delete(tabId);
+
+  // Detach debugger if attached
+  if (isDebuggerAttached(tabId)) {
+    try {
+      await detachDebugger(tabId);
+    } catch (err) {
+      // Tab already closed, debugger auto-detached
+      console.log('[Background] Debugger cleanup on tab close:', err.message);
+    }
+  }
 
   // Clear agent state
   await clearTabState(tabId);
@@ -332,6 +354,15 @@ async function startAgentTask(task, tabId) {
 
   const taskId = Date.now().toString();
 
+  // Attach debugger to tab (triggers Chrome's native "Started debugging" banner)
+  try {
+    await attachDebugger(tabId);
+    console.log('[Background] Debugger attached for CDP actions on tab', tabId);
+  } catch (error) {
+    console.error('[Background] Failed to attach debugger:', error);
+    return { success: false, error: `Failed to attach debugger: ${error.message}` };
+  }
+
   // Notify side panel that task is starting
   notifySidePanel({
     type: 'taskStarted',
@@ -374,8 +405,19 @@ async function startAgentTask(task, tabId) {
     },
 
     // Task completed
-    onComplete: (reasoning) => {
+    onComplete: async (reasoning) => {
       console.log('[Background] Task completed on tab', tabId, ':', reasoning);
+
+      // Detach debugger on completion
+      if (isDebuggerAttached(tabId)) {
+        try {
+          await detachDebugger(tabId);
+          console.log('[Background] Debugger detached after completion on tab', tabId);
+        } catch (err) {
+          console.warn('[Background] Failed to detach debugger on completion:', err);
+        }
+      }
+
       notifySidePanel({
         type: 'taskCompleted',
         reasoning: reasoning,
@@ -385,8 +427,19 @@ async function startAgentTask(task, tabId) {
     },
 
     // Error occurred
-    onError: (error) => {
+    onError: async (error) => {
       console.error('[Background] Task error on tab', tabId, ':', error);
+
+      // Detach debugger on error
+      if (isDebuggerAttached(tabId)) {
+        try {
+          await detachDebugger(tabId);
+          console.log('[Background] Debugger detached after error on tab', tabId);
+        } catch (err) {
+          console.warn('[Background] Failed to detach debugger on error:', err);
+        }
+      }
+
       notifySidePanel({
         type: 'taskError',
         error: error,
@@ -428,18 +481,74 @@ async function startAgentTask(task, tabId) {
       return state;
     },
 
-    // Execute action on this specific tab
+    // Execute action on this specific tab using CDP for real input events
     executeAction: async (action) => {
-      console.log('[Background] Executing action on tab', tabId, ':', JSON.stringify(action));
-      const result = await sendToContentScript({
-        action: 'executeAction',
-        type: action.action,
-        targetId: action.targetId,
-        value: action.value,
-        amount: action.amount
-      }, tabId);
-      console.log('[Background] Action result from tab', tabId, ':', JSON.stringify(result));
-      return result;
+      console.log('[Background] Executing CDP action on tab', tabId, ':', JSON.stringify(action));
+
+      try {
+        // For actions that need element coordinates, get them from content script
+        if (action.targetId && ['click', 'type'].includes(action.action)) {
+          // First scroll element into view and get coordinates
+          const scrollResult = await sendToContentScript({
+            action: 'scrollElementIntoView',
+            targetId: action.targetId
+          }, tabId);
+
+          if (!scrollResult.success) {
+            return scrollResult; // Element not found
+          }
+
+          const { center } = scrollResult;
+
+          // Execute CDP action based on type
+          switch (action.action) {
+            case 'click':
+              await cdpClick(tabId, center.x, center.y);
+              return { success: true, action: 'click', method: 'cdp' };
+
+            case 'type':
+              // Click to focus first
+              await cdpClick(tabId, center.x, center.y);
+              await sleep(100);
+              // Clear and type using CDP
+              await cdpClearAndType(tabId, action.value);
+              return { success: true, action: 'type', value: action.value, method: 'cdp' };
+          }
+        }
+
+        // Handle scroll actions via CDP
+        if (action.action === 'scroll') {
+          const amount = action.amount || 500;
+          if (amount > 0) {
+            await cdpScrollDown(tabId, amount);
+          } else {
+            await cdpScrollUp(tabId, Math.abs(amount));
+          }
+          return { success: true, action: 'scroll', amount, method: 'cdp' };
+        }
+
+        // Handle keypress actions via CDP
+        if (action.action === 'keypress' || action.action === 'pressKey') {
+          await cdpPressKey(tabId, action.key || action.value);
+          return { success: true, action: 'keypress', key: action.key || action.value, method: 'cdp' };
+        }
+
+        // Fallback to content script for other actions (hover, focus, etc.)
+        console.log('[Background] Falling back to content script for action:', action.action);
+        const result = await sendToContentScript({
+          action: 'executeAction',
+          type: action.action,
+          targetId: action.targetId,
+          value: action.value,
+          amount: action.amount
+        }, tabId);
+
+        return result;
+
+      } catch (error) {
+        console.error('[Background] CDP action failed:', error);
+        return { success: false, error: error.message };
+      }
     }
   });
 
@@ -459,6 +568,16 @@ async function stopAgentTask(tabId) {
   console.log('[Background] Stopping task on tab', tabId);
 
   await stopAgentLoop(tabId);
+
+  // Detach debugger (removes Chrome's "Started debugging" banner)
+  if (isDebuggerAttached(tabId)) {
+    try {
+      await detachDebugger(tabId);
+      console.log('[Background] Debugger detached from tab', tabId);
+    } catch (error) {
+      console.warn('[Background] Failed to detach debugger:', error);
+    }
+  }
 
   notifySidePanel({
     type: 'taskStopped',
@@ -551,7 +670,16 @@ async function handleSubmitClarification(answer, tabId) {
       });
     },
 
-    onComplete: (reasoning) => {
+    onComplete: async (reasoning) => {
+      // Detach debugger on completion
+      if (isDebuggerAttached(tabId)) {
+        try {
+          await detachDebugger(tabId);
+        } catch (err) {
+          console.warn('[Background] Failed to detach debugger:', err);
+        }
+      }
+
       notifySidePanel({
         type: 'taskCompleted',
         reasoning: reasoning,
@@ -560,7 +688,16 @@ async function handleSubmitClarification(answer, tabId) {
       });
     },
 
-    onError: (error) => {
+    onError: async (error) => {
+      // Detach debugger on error
+      if (isDebuggerAttached(tabId)) {
+        try {
+          await detachDebugger(tabId);
+        } catch (err) {
+          console.warn('[Background] Failed to detach debugger:', err);
+        }
+      }
+
       notifySidePanel({
         type: 'taskError',
         error: error,
@@ -592,14 +729,62 @@ async function handleSubmitClarification(answer, tabId) {
       return await capturePageState(tabId);
     },
 
+    // Execute action using CDP (same as main startAgentTask)
     executeAction: async (action) => {
-      return await sendToContentScript({
-        action: 'executeAction',
-        type: action.action,
-        targetId: action.targetId,
-        value: action.value,
-        amount: action.amount
-      }, tabId);
+      try {
+        if (action.targetId && ['click', 'type'].includes(action.action)) {
+          const scrollResult = await sendToContentScript({
+            action: 'scrollElementIntoView',
+            targetId: action.targetId
+          }, tabId);
+
+          if (!scrollResult.success) {
+            return scrollResult;
+          }
+
+          const { center } = scrollResult;
+
+          switch (action.action) {
+            case 'click':
+              await cdpClick(tabId, center.x, center.y);
+              return { success: true, action: 'click', method: 'cdp' };
+
+            case 'type':
+              await cdpClick(tabId, center.x, center.y);
+              await sleep(100);
+              await cdpClearAndType(tabId, action.value);
+              return { success: true, action: 'type', value: action.value, method: 'cdp' };
+          }
+        }
+
+        if (action.action === 'scroll') {
+          const amount = action.amount || 500;
+          if (amount > 0) {
+            await cdpScrollDown(tabId, amount);
+          } else {
+            await cdpScrollUp(tabId, Math.abs(amount));
+          }
+          return { success: true, action: 'scroll', amount, method: 'cdp' };
+        }
+
+        if (action.action === 'keypress' || action.action === 'pressKey') {
+          await cdpPressKey(tabId, action.key || action.value);
+          return { success: true, action: 'keypress', key: action.key || action.value, method: 'cdp' };
+        }
+
+        // Fallback to content script
+        return await sendToContentScript({
+          action: 'executeAction',
+          type: action.action,
+          targetId: action.targetId,
+          value: action.value,
+          amount: action.amount
+        }, tabId);
+
+      } catch (error) {
+        console.error('[Background] CDP action failed:', error);
+        return { success: false, error: error.message };
+      }
     }
   });
 
@@ -629,5 +814,33 @@ function notifySidePanel(message) {
 
 // Note: Service worker terminates after ~30s of inactivity
 // State checkpointing is handled by state-manager.js
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================================================
+// CDP Debugger Lifecycle
+// ============================================================================
+
+// Setup listener for user canceling via Chrome's native "Started debugging" banner
+setupDebuggerDetachListener(async (tabId) => {
+  console.log('[Background] User cancelled debugging via Chrome banner for tab', tabId);
+
+  // Stop the agent task for this tab
+  await stopAgentLoop(tabId);
+
+  // Notify side panel
+  notifySidePanel({
+    type: 'taskStopped',
+    status: 'stopped',
+    reason: 'User cancelled via Chrome debugging banner',
+    tabId
+  });
+});
 
 console.log('[Background] Service worker started');

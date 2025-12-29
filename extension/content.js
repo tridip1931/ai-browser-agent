@@ -45,6 +45,12 @@ async function handleMessage(message) {
     case 'clearAnnotations':
       return clearAnnotations();
 
+    case 'getElementRect':
+      return getElementRect(message.targetId);
+
+    case 'scrollElementIntoView':
+      return scrollElementIntoView(message.targetId);
+
     default:
       console.warn('[Content] Unknown action:', message.action);
       return { success: false, error: `Unknown action: ${message.action}` };
@@ -543,6 +549,100 @@ async function scrollToLoadAllContent() {
   window.scrollTo({ top: originalScrollY, behavior: 'instant' });
   await sleep(scrollTimeout);
   console.log('[Content] Returned to original scroll position:', originalScrollY);
+}
+
+// ============================================================================
+// CDP Support Functions
+// ============================================================================
+
+/**
+ * Get element bounding rect for CDP click coordinates
+ * Returns center point for accurate clicking
+ * @param {string} targetId - The data-ai-id value
+ * @returns {Object} { success, rect, center }
+ */
+function getElementRect(targetId) {
+  const element = document.querySelector(`[data-ai-id="${targetId}"]`);
+
+  if (!element) {
+    console.error('[Content] Element not found for rect:', targetId);
+    return { success: false, error: `Element not found: ${targetId}` };
+  }
+
+  const rect = element.getBoundingClientRect();
+
+  // Check if element is visible
+  if (rect.width === 0 || rect.height === 0) {
+    return { success: false, error: `Element has zero dimensions: ${targetId}` };
+  }
+
+  const result = {
+    success: true,
+    rect: {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      left: rect.left
+    },
+    center: {
+      x: Math.round(rect.x + rect.width / 2),
+      y: Math.round(rect.y + rect.height / 2)
+    },
+    inViewport: (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= window.innerHeight &&
+      rect.right <= window.innerWidth
+    )
+  };
+
+  console.log('[Content] Element rect for', targetId, ':', result.center);
+  return result;
+}
+
+/**
+ * Scroll element into view for CDP actions
+ * Ensures element is visible before CDP click/type
+ * @param {string} targetId - The data-ai-id value
+ * @returns {Object} { success, rect, center }
+ */
+async function scrollElementIntoView(targetId) {
+  const element = document.querySelector(`[data-ai-id="${targetId}"]`);
+
+  if (!element) {
+    console.error('[Content] Element not found for scroll:', targetId);
+    return { success: false, error: `Element not found: ${targetId}` };
+  }
+
+  // Scroll element to center of viewport
+  element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+  // Wait for scroll to complete
+  await sleep(300);
+
+  // Return updated rect after scroll
+  const rect = element.getBoundingClientRect();
+
+  const result = {
+    success: true,
+    rect: {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
+    },
+    center: {
+      x: Math.round(rect.x + rect.width / 2),
+      y: Math.round(rect.y + rect.height / 2)
+    }
+  };
+
+  console.log('[Content] Scrolled element into view:', targetId, 'center:', result.center);
+  return result;
 }
 
 // ============================================================================

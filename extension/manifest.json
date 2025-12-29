@@ -10,10 +10,7 @@
     "sidePanel",
     "storage",
     "tabs",
-    "tabGroups"
-  ],
-
-  "optional_permissions": [
+    "tabGroups",
     "debugger"
   ],
 

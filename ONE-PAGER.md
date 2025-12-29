@@ -543,6 +543,32 @@ async function executeWithCheckpoint(action) {
 
 ---
 
+## V2 Plans (Next Version)
+
+| Part | Description | Status |
+|------|-------------|--------|
+| [CDP Integration](docs/v2-01-cdp-integration.md) | Upgrade to Chrome DevTools Protocol for real input events | Planned |
+| [Monochrome UI](docs/v2-02-monochrome-ui.md) | Clean design with orange accent, CSS variables | Planned |
+| [Activity Feed](docs/v2-03-activity-feed.md) | Terminal-like action display format | Planned |
+| [Plan Display](docs/v2-04-plan-display.md) | Simplified execution plan cards | Planned |
+| [Conversational AI](docs/v2-05-conversational-ai.md) | Multi-turn dialogue with confidence-based decisions | Planned |
+
+### V2 Summary
+
+| Feature | V1 (Current) | V2 (Planned) |
+|---------|--------------|--------------|
+| Input method | Content script (synthetic) | CDP (real events) |
+| Page indicator | Custom orange border | Native Chrome debugger banner |
+| UI style | Colorful chat interface | Monochromatic activity feed |
+| Action display | Cards with emojis | Simple text feed |
+| Color scheme | Multiple colors | Grayscale + orange accent |
+| Clarification | Single round, open-ended | Multi-round, option-based |
+| Confidence | None | 3-zone system (ask/assume/proceed) |
+| Plan iteration | None | Self-refine loop (3 iterations) |
+| Failure recovery | Log and continue | Analyze + retry/skip/replan |
+
+---
+
 ## Open Source References
 
 | Repository | Stars | Approach |
