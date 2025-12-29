@@ -10,8 +10,16 @@
  * Now TAB-AWARE - each tab has its own agent session.
  */
 
-import { runAgentLoop, stopAgentLoop, getAgentStatus as getLoopStatus, retryWithClarification } from './lib/agent-loop.js';
-import { clearTabState } from './lib/state-manager.js';
+import {
+  runAgentLoop,
+  stopAgentLoop,
+  getAgentStatus as getLoopStatus,
+  retryWithClarification,
+  // V2 exports
+  runAgentLoopV2,
+  retryWithClarificationV2
+} from './lib/agent-loop.js';
+import { clearTabState, recordMidExecDecision } from './lib/state-manager.js';
 import {
   attachDebugger,
   detachDebugger,
@@ -238,6 +246,25 @@ async function handleMessage(message, sender, tabId) {
 
     case 'submitClarification':
       return await handleSubmitClarification(message.answer, tabId);
+
+    // ========================================
+    // V2: Confidence-Based Agent Loop
+    // ========================================
+
+    case 'startTaskV2':
+      return await startAgentTaskV2(message.task, tabId);
+
+    case 'submitClarificationV2':
+      return await handleSubmitClarificationV2(message.answer, message.selectedOptionId, tabId);
+
+    case 'correctAssumption':
+      return await handleCorrectAssumption(message.field, message.newValue, tabId);
+
+    case 'midExecDecision':
+      return await handleMidExecDecision(message.decision, tabId);
+
+    case 'cancelAssumeAnnounce':
+      return await handleCancelAssumeAnnounce(tabId);
 
     default:
       console.warn('[Background] Unknown action:', message.action);
@@ -789,6 +816,399 @@ async function handleSubmitClarification(answer, tabId) {
   });
 
   return { success: true, message: 'Clarification submitted' };
+}
+
+// ============================================================================
+// V2: Confidence-Based Agent Task Handlers
+// ============================================================================
+
+// Track V2-specific pending state
+const pendingAssumeAnnounce = new Map(); // tabId -> { onCorrect, onCancel }
+const pendingMidExecDecisions = new Map(); // tabId -> { onDecision }
+
+/**
+ * Start V2 agent task with confidence-based dialogue
+ * @param {string} task - Task description
+ * @param {number} tabId - Tab ID
+ */
+async function startAgentTaskV2(task, tabId) {
+  console.log('[Background] Starting V2 task on tab', tabId, ':', task);
+
+  if (!tabId) {
+    return { success: false, error: 'No tab ID provided' };
+  }
+
+  // Attach debugger
+  try {
+    await attachDebugger(tabId);
+    console.log('[Background] Debugger attached for V2 task on tab', tabId);
+  } catch (error) {
+    console.error('[Background] Failed to attach debugger:', error);
+    return { success: false, error: `Failed to attach debugger: ${error.message}` };
+  }
+
+  // Notify side panel
+  notifySidePanel({
+    type: 'taskStarted',
+    task: task,
+    status: 'running',
+    version: 'v2',
+    tabId
+  });
+
+  // Run V2 agent loop with confidence-based callbacks
+  runAgentLoopV2(task, tabId, {
+    // Standard callbacks
+    onProgress: (progress) => {
+      notifySidePanel({ type: 'progress', ...progress, tabId });
+    },
+
+    onActionStarted: (action) => {
+      notifySidePanel({ type: 'actionStarted', action, tabId });
+    },
+
+    onAction: (action, result) => {
+      notifySidePanel({ type: 'actionExecuted', action, result, tabId });
+    },
+
+    onComplete: async (reasoning) => {
+      if (isDebuggerAttached(tabId)) {
+        try { await detachDebugger(tabId); } catch (e) { /* ignore */ }
+      }
+      notifySidePanel({ type: 'taskCompleted', reasoning, status: 'completed', tabId });
+    },
+
+    onError: async (error) => {
+      if (isDebuggerAttached(tabId)) {
+        try { await detachDebugger(tabId); } catch (e) { /* ignore */ }
+      }
+      notifySidePanel({ type: 'taskError', error, status: 'error', tabId });
+    },
+
+    onPlanReady: async (plan) => {
+      return new Promise((resolve) => {
+        pendingApprovals.set(tabId, { resolve, plan });
+        notifySidePanel({ type: 'planReady', plan, tabId });
+      });
+    },
+
+    onClarifyNeeded: (clarifyInfo) => {
+      notifySidePanel({
+        type: 'clarifyNeeded',
+        questions: clarifyInfo.questions,
+        isOptionBased: clarifyInfo.isOptionBased,
+        tabId
+      });
+    },
+
+    // V2 specific callbacks
+    onConfidenceReport: (confidence) => {
+      notifySidePanel({
+        type: 'confidenceReport',
+        overall: confidence.overall,
+        breakdown: confidence.breakdown,
+        recommendation: confidence.recommendation,
+        tabId
+      });
+    },
+
+    onAssumeAnnounce: (info) => {
+      // Store callbacks for user response
+      pendingAssumeAnnounce.set(tabId, {
+        onCorrect: info.onCorrect,
+        onCancel: info.onCancel
+      });
+
+      notifySidePanel({
+        type: 'assumeAnnounce',
+        assumptions: info.assumptions,
+        plan: info.plan,
+        autoExecuteDelay: info.autoExecuteDelay,
+        tabId
+      });
+    },
+
+    onSelfRefineProgress: (progress) => {
+      notifySidePanel({
+        type: 'selfRefineUpdate',
+        iteration: progress.iteration,
+        maxIterations: progress.maxIterations,
+        previousScore: progress.previousScore,
+        newScore: progress.newScore,
+        improvements: progress.improvements,
+        tabId
+      });
+    },
+
+    onMidExecDialog: (info) => {
+      // Store decision callback
+      pendingMidExecDecisions.set(tabId, {
+        onDecision: info.onDecision
+      });
+
+      notifySidePanel({
+        type: 'midExecDialog',
+        failedStep: info.failedStep,
+        error: info.error,
+        analysis: info.analysis,
+        options: info.options,
+        suggestedAction: info.suggestedAction,
+        tabId
+      });
+    },
+
+    // Page state capture
+    capturePageState: async () => {
+      return await capturePageState(tabId);
+    },
+
+    // Execute action via CDP (same as V1)
+    executeAction: async (action) => {
+      try {
+        if (action.targetId && ['click', 'type'].includes(action.action)) {
+          const scrollResult = await sendToContentScript({
+            action: 'scrollElementIntoView',
+            targetId: action.targetId
+          }, tabId);
+
+          if (!scrollResult.success) return scrollResult;
+
+          const { center } = scrollResult;
+
+          switch (action.action) {
+            case 'click':
+              await cdpClick(tabId, center.x, center.y);
+              return { success: true, action: 'click', method: 'cdp' };
+
+            case 'type':
+              await cdpClick(tabId, center.x, center.y);
+              await sleep(100);
+              await cdpClearAndType(tabId, action.value);
+              return { success: true, action: 'type', value: action.value, method: 'cdp' };
+          }
+        }
+
+        if (action.action === 'scroll') {
+          const amount = action.amount || 500;
+          if (amount > 0) {
+            await cdpScrollDown(tabId, amount);
+          } else {
+            await cdpScrollUp(tabId, Math.abs(amount));
+          }
+          return { success: true, action: 'scroll', amount, method: 'cdp' };
+        }
+
+        if (action.action === 'keypress' || action.action === 'pressKey') {
+          await cdpPressKey(tabId, action.key || action.value);
+          return { success: true, action: 'keypress', key: action.key || action.value, method: 'cdp' };
+        }
+
+        // Fallback to content script
+        return await sendToContentScript({
+          action: 'executeAction',
+          type: action.action,
+          targetId: action.targetId,
+          value: action.value,
+          amount: action.amount
+        }, tabId);
+
+      } catch (error) {
+        console.error('[Background] V2 CDP action failed:', error);
+        return { success: false, error: error.message };
+      }
+    }
+  });
+
+  return { success: true, message: 'V2 task started', tabId };
+}
+
+/**
+ * Handle V2 clarification submission with option selection
+ */
+async function handleSubmitClarificationV2(answer, selectedOptionId, tabId) {
+  console.log('[Background] V2 Clarification submitted for tab', tabId);
+
+  await retryWithClarificationV2(tabId, answer, selectedOptionId, {
+    onProgress: (progress) => notifySidePanel({ type: 'progress', ...progress, tabId }),
+    onActionStarted: (action) => notifySidePanel({ type: 'actionStarted', action, tabId }),
+    onAction: (action, result) => notifySidePanel({ type: 'actionExecuted', action, result, tabId }),
+
+    onComplete: async (reasoning) => {
+      if (isDebuggerAttached(tabId)) {
+        try { await detachDebugger(tabId); } catch (e) { /* ignore */ }
+      }
+      notifySidePanel({ type: 'taskCompleted', reasoning, status: 'completed', tabId });
+    },
+
+    onError: async (error) => {
+      if (isDebuggerAttached(tabId)) {
+        try { await detachDebugger(tabId); } catch (e) { /* ignore */ }
+      }
+      notifySidePanel({ type: 'taskError', error, status: 'error', tabId });
+    },
+
+    onPlanReady: async (plan) => {
+      return new Promise((resolve) => {
+        pendingApprovals.set(tabId, { resolve, plan });
+        notifySidePanel({ type: 'planReady', plan, tabId });
+      });
+    },
+
+    onClarifyNeeded: (clarifyInfo) => {
+      notifySidePanel({
+        type: 'clarifyNeeded',
+        questions: clarifyInfo.questions,
+        isOptionBased: clarifyInfo.isOptionBased,
+        tabId
+      });
+    },
+
+    onConfidenceReport: (confidence) => {
+      notifySidePanel({
+        type: 'confidenceReport',
+        overall: confidence.overall,
+        breakdown: confidence.breakdown,
+        recommendation: confidence.recommendation,
+        tabId
+      });
+    },
+
+    onAssumeAnnounce: (info) => {
+      pendingAssumeAnnounce.set(tabId, {
+        onCorrect: info.onCorrect,
+        onCancel: info.onCancel
+      });
+      notifySidePanel({
+        type: 'assumeAnnounce',
+        assumptions: info.assumptions,
+        plan: info.plan,
+        autoExecuteDelay: info.autoExecuteDelay,
+        tabId
+      });
+    },
+
+    onSelfRefineProgress: (progress) => {
+      notifySidePanel({
+        type: 'selfRefineUpdate',
+        ...progress,
+        tabId
+      });
+    },
+
+    onMidExecDialog: (info) => {
+      pendingMidExecDecisions.set(tabId, { onDecision: info.onDecision });
+      notifySidePanel({
+        type: 'midExecDialog',
+        failedStep: info.failedStep,
+        error: info.error,
+        analysis: info.analysis,
+        options: info.options,
+        suggestedAction: info.suggestedAction,
+        tabId
+      });
+    },
+
+    capturePageState: async () => await capturePageState(tabId),
+
+    executeAction: async (action) => {
+      try {
+        if (action.targetId && ['click', 'type'].includes(action.action)) {
+          const scrollResult = await sendToContentScript({
+            action: 'scrollElementIntoView',
+            targetId: action.targetId
+          }, tabId);
+          if (!scrollResult.success) return scrollResult;
+          const { center } = scrollResult;
+
+          switch (action.action) {
+            case 'click':
+              await cdpClick(tabId, center.x, center.y);
+              return { success: true, action: 'click', method: 'cdp' };
+            case 'type':
+              await cdpClick(tabId, center.x, center.y);
+              await sleep(100);
+              await cdpClearAndType(tabId, action.value);
+              return { success: true, action: 'type', value: action.value, method: 'cdp' };
+          }
+        }
+
+        if (action.action === 'scroll') {
+          const amount = action.amount || 500;
+          amount > 0 ? await cdpScrollDown(tabId, amount) : await cdpScrollUp(tabId, Math.abs(amount));
+          return { success: true, action: 'scroll', amount, method: 'cdp' };
+        }
+
+        if (action.action === 'keypress' || action.action === 'pressKey') {
+          await cdpPressKey(tabId, action.key || action.value);
+          return { success: true, action: 'keypress', key: action.key || action.value, method: 'cdp' };
+        }
+
+        return await sendToContentScript({
+          action: 'executeAction',
+          type: action.action,
+          targetId: action.targetId,
+          value: action.value,
+          amount: action.amount
+        }, tabId);
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }
+  });
+
+  return { success: true, message: 'V2 clarification submitted' };
+}
+
+/**
+ * Handle assumption correction during assume-announce
+ */
+async function handleCorrectAssumption(field, newValue, tabId) {
+  console.log('[Background] Assumption corrected for tab', tabId, ':', field, '->', newValue);
+
+  const pending = pendingAssumeAnnounce.get(tabId);
+  if (pending && pending.onCorrect) {
+    pending.onCorrect({ field, newValue });
+    pendingAssumeAnnounce.delete(tabId);
+    return { success: true, message: 'Assumption corrected' };
+  }
+
+  return { success: false, error: 'No pending assume-announce' };
+}
+
+/**
+ * Handle cancel during assume-announce
+ */
+async function handleCancelAssumeAnnounce(tabId) {
+  console.log('[Background] Assume-announce cancelled for tab', tabId);
+
+  const pending = pendingAssumeAnnounce.get(tabId);
+  if (pending && pending.onCancel) {
+    pending.onCancel();
+    pendingAssumeAnnounce.delete(tabId);
+    return { success: true, message: 'Assume-announce cancelled' };
+  }
+
+  return { success: false, error: 'No pending assume-announce' };
+}
+
+/**
+ * Handle mid-execution decision (retry/skip/replan/abort)
+ */
+async function handleMidExecDecision(decision, tabId) {
+  console.log('[Background] Mid-exec decision for tab', tabId, ':', decision);
+
+  const pending = pendingMidExecDecisions.get(tabId);
+  if (pending && pending.onDecision) {
+    pending.onDecision(decision);
+    pendingMidExecDecisions.delete(tabId);
+
+    // Also update state
+    await recordMidExecDecision(decision, tabId);
+
+    return { success: true, message: `Decision recorded: ${decision}` };
+  }
+
+  return { success: false, error: 'No pending mid-exec decision' };
 }
 
 // ============================================================================

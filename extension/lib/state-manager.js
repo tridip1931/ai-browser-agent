@@ -25,10 +25,64 @@ function getStateKey(tabId) {
 }
 
 /**
- * Default agent state
+ * V2 Status values (dialogue state machine)
+ *
+ * idle              → Ready for task
+ * planning          → Analyzing task, building plan
+ * clarifying        → Waiting for user answer to questions
+ * refining          → Self-refine loop running
+ * assume_announce   → Showing assumptions, auto-executing after delay
+ * awaiting_approval → Plan displayed, waiting for Execute/Cancel
+ * executing         → Running actions
+ * mid_exec_dialog   → Paused for user decision on failure
+ * replanning        → Building new plan from current state
+ * completed         → Task finished successfully
+ * error             → Task failed
+ */
+
+/**
+ * Default dialogue state for V2
+ */
+const DEFAULT_DIALOGUE_STATE = {
+  clarificationRound: 0,      // 0-3 (max 3 clarification rounds)
+  maxClarificationRounds: 3,
+  refineIteration: 0,         // 0-3 (max 3 refine iterations)
+  maxRefineIterations: 3,
+  pendingQuestions: [],       // Questions waiting for user answer
+  assumptions: [],            // [{ field, assumedValue, confidence }]
+  autoExecuteDelay: 3000,     // ms delay for assume+announce pattern
+  autoExecuteTimerId: null    // Timer ID for cancellation
+};
+
+/**
+ * Default execution state for V2
+ */
+const DEFAULT_EXECUTION_STATE = {
+  currentStepIndex: 0,
+  totalSteps: 0,
+  completedSteps: [],         // [{ stepIndex, action, result, timestamp }]
+  failedSteps: [],            // [{ stepIndex, error, retryCount, resolution }]
+  checkpoint: null            // { beforeStepIndex, pageState, timestamp }
+};
+
+/**
+ * Default confidence breakdown
+ */
+const DEFAULT_CONFIDENCE = {
+  overall: 0,                 // 0-1 weighted average
+  intentClarity: 0,           // 0-1 how clear is the user intent
+  targetMatch: 0,             // 0-1 elementsFound / elementsNeeded
+  valueConfidence: 0          // 0-1 valuesExplicit / valuesNeeded
+};
+
+/**
+ * Default agent state (V2 extended)
  */
 const DEFAULT_STATE = {
-  status: 'idle', // idle | running | paused | completed | error
+  // Core status (V2 dialogue state machine)
+  status: 'idle', // idle | planning | clarifying | refining | assume_announce |
+                  // awaiting_approval | executing | mid_exec_dialog |
+                  // replanning | completed | error
   currentTask: null,
   actionHistory: [],
   startTime: null,
@@ -36,7 +90,23 @@ const DEFAULT_STATE = {
   error: null,
   iteration: 0,
   maxIterations: 50,
-  tabId: null
+  tabId: null,
+
+  // V2: Conversation tracking
+  conversationHistory: [],    // [{ role, content, timestamp, messageType }]
+
+  // V2: Dialogue state
+  dialogueState: { ...DEFAULT_DIALOGUE_STATE },
+
+  // V2: Execution state
+  executionState: { ...DEFAULT_EXECUTION_STATE },
+
+  // V2: Plan tracking
+  currentPlan: null,          // { id, version, summary, confidence, steps, assumptions, risks }
+  planHistory: [],            // Previous plan versions for comparison
+
+  // V2: Confidence
+  confidence: { ...DEFAULT_CONFIDENCE }
 };
 
 /**
@@ -244,8 +314,372 @@ export async function resumeTask(tabId) {
 export async function stopTask(tabId) {
   return await updateState({
     status: 'idle',
-    currentTask: null
+    currentTask: null,
+    dialogueState: { ...DEFAULT_DIALOGUE_STATE },
+    executionState: { ...DEFAULT_EXECUTION_STATE },
+    currentPlan: null,
+    confidence: { ...DEFAULT_CONFIDENCE }
   }, tabId);
+}
+
+// ============================================================================
+// V2: Dialogue State Management
+// ============================================================================
+
+/**
+ * Transition to a new dialogue state
+ * @param {string} newStatus - New status value
+ * @param {number} tabId - Tab ID
+ * @param {Object} additionalUpdates - Additional state updates
+ */
+export async function transitionTo(newStatus, tabId, additionalUpdates = {}) {
+  const validStatuses = [
+    'idle', 'planning', 'clarifying', 'refining', 'assume_announce',
+    'awaiting_approval', 'executing', 'mid_exec_dialog', 'replanning',
+    'completed', 'error'
+  ];
+
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error(`Invalid status: ${newStatus}`);
+  }
+
+  console.log('[StateManager] Transitioning to:', newStatus);
+  return await updateState({
+    status: newStatus,
+    lastActionTime: Date.now(),
+    ...additionalUpdates
+  }, tabId);
+}
+
+/**
+ * Start planning phase
+ * @param {string} task - Task description
+ * @param {number} tabId - Tab ID
+ */
+export async function startPlanning(task, tabId) {
+  const state = {
+    ...DEFAULT_STATE,
+    status: 'planning',
+    currentTask: task,
+    startTime: Date.now(),
+    tabId,
+    conversationHistory: [
+      { role: 'user', content: task, timestamp: Date.now(), messageType: 'task' }
+    ]
+  };
+
+  await saveState(state, tabId);
+  return state;
+}
+
+/**
+ * Enter clarifying state with questions
+ * @param {Array} questions - Questions to ask user
+ * @param {number} tabId - Tab ID
+ */
+export async function enterClarifying(questions, tabId) {
+  const state = await loadState(tabId);
+
+  const newDialogueState = {
+    ...state.dialogueState,
+    clarificationRound: state.dialogueState.clarificationRound + 1,
+    pendingQuestions: questions
+  };
+
+  // Check if we've hit max rounds
+  if (newDialogueState.clarificationRound > newDialogueState.maxClarificationRounds) {
+    console.log('[StateManager] Max clarification rounds reached, proceeding with best effort');
+    return await transitionTo('awaiting_approval', tabId);
+  }
+
+  return await updateState({
+    status: 'clarifying',
+    dialogueState: newDialogueState,
+    conversationHistory: [
+      ...state.conversationHistory,
+      {
+        role: 'assistant',
+        content: questions.map(q => q.question || q).join('\n'),
+        timestamp: Date.now(),
+        messageType: 'clarification'
+      }
+    ]
+  }, tabId);
+}
+
+/**
+ * Record user's clarification answer
+ * @param {string} answer - User's answer
+ * @param {string} selectedOptionId - Selected option ID if applicable
+ * @param {number} tabId - Tab ID
+ */
+export async function recordClarificationAnswer(answer, selectedOptionId, tabId) {
+  const state = await loadState(tabId);
+
+  return await updateState({
+    dialogueState: {
+      ...state.dialogueState,
+      pendingQuestions: [] // Clear pending questions
+    },
+    conversationHistory: [
+      ...state.conversationHistory,
+      {
+        role: 'user',
+        content: answer,
+        timestamp: Date.now(),
+        messageType: 'clarification_answer',
+        selectedOptionId
+      }
+    ]
+  }, tabId);
+}
+
+/**
+ * Enter assume-announce state with assumptions
+ * @param {Array} assumptions - Assumptions being made
+ * @param {Object} plan - The plan to execute
+ * @param {number} tabId - Tab ID
+ */
+export async function enterAssumeAnnounce(assumptions, plan, tabId) {
+  const state = await loadState(tabId);
+
+  return await updateState({
+    status: 'assume_announce',
+    dialogueState: {
+      ...state.dialogueState,
+      assumptions
+    },
+    currentPlan: plan,
+    conversationHistory: [
+      ...state.conversationHistory,
+      {
+        role: 'assistant',
+        content: `Proceeding with assumptions: ${assumptions.map(a => `${a.field}: ${a.assumedValue}`).join(', ')}`,
+        timestamp: Date.now(),
+        messageType: 'assume_announce'
+      }
+    ]
+  }, tabId);
+}
+
+/**
+ * Enter refining state for self-refine loop
+ * @param {number} tabId - Tab ID
+ */
+export async function enterRefining(tabId) {
+  const state = await loadState(tabId);
+
+  return await updateState({
+    status: 'refining',
+    dialogueState: {
+      ...state.dialogueState,
+      refineIteration: state.dialogueState.refineIteration + 1
+    }
+  }, tabId);
+}
+
+/**
+ * Set the current plan with confidence
+ * @param {Object} plan - Plan object with steps, summary, confidence
+ * @param {Object} confidence - Confidence breakdown
+ * @param {number} tabId - Tab ID
+ */
+export async function setPlan(plan, confidence, tabId) {
+  const state = await loadState(tabId);
+
+  // Add to plan history before replacing
+  const planHistory = state.currentPlan
+    ? [...state.planHistory, state.currentPlan]
+    : state.planHistory;
+
+  return await updateState({
+    currentPlan: {
+      ...plan,
+      id: `plan-${Date.now()}`,
+      version: planHistory.length + 1,
+      createdAt: Date.now()
+    },
+    planHistory,
+    confidence
+  }, tabId);
+}
+
+/**
+ * Enter mid-execution dialogue state
+ * @param {Object} failedStep - The step that failed
+ * @param {string} error - Error message
+ * @param {number} tabId - Tab ID
+ */
+export async function enterMidExecDialog(failedStep, error, tabId) {
+  const state = await loadState(tabId);
+
+  // Record the failure
+  const failedSteps = [
+    ...state.executionState.failedSteps,
+    {
+      stepIndex: state.executionState.currentStepIndex,
+      error,
+      retryCount: 0,
+      resolution: null,
+      timestamp: Date.now()
+    }
+  ];
+
+  return await updateState({
+    status: 'mid_exec_dialog',
+    executionState: {
+      ...state.executionState,
+      failedSteps
+    }
+  }, tabId);
+}
+
+/**
+ * Record mid-execution decision
+ * @param {string} decision - 'retry' | 'skip' | 'replan' | 'abort'
+ * @param {number} tabId - Tab ID
+ */
+export async function recordMidExecDecision(decision, tabId) {
+  const state = await loadState(tabId);
+
+  // Update the last failed step with resolution
+  const failedSteps = [...state.executionState.failedSteps];
+  if (failedSteps.length > 0) {
+    failedSteps[failedSteps.length - 1].resolution = decision;
+  }
+
+  let newStatus;
+  switch (decision) {
+    case 'retry':
+    case 'skip':
+      newStatus = 'executing';
+      break;
+    case 'replan':
+      newStatus = 'replanning';
+      break;
+    case 'abort':
+      newStatus = 'idle';
+      break;
+    default:
+      newStatus = 'executing';
+  }
+
+  return await updateState({
+    status: newStatus,
+    executionState: {
+      ...state.executionState,
+      failedSteps,
+      currentStepIndex: decision === 'skip'
+        ? state.executionState.currentStepIndex + 1
+        : state.executionState.currentStepIndex
+    }
+  }, tabId);
+}
+
+/**
+ * Update execution progress
+ * @param {number} stepIndex - Current step index
+ * @param {Object} result - Step result
+ * @param {number} tabId - Tab ID
+ */
+export async function updateExecutionProgress(stepIndex, result, tabId) {
+  const state = await loadState(tabId);
+
+  const completedSteps = [
+    ...state.executionState.completedSteps,
+    {
+      stepIndex,
+      action: state.currentPlan?.steps?.[stepIndex] || null,
+      result,
+      timestamp: Date.now()
+    }
+  ];
+
+  return await updateState({
+    executionState: {
+      ...state.executionState,
+      currentStepIndex: stepIndex + 1,
+      completedSteps
+    }
+  }, tabId);
+}
+
+/**
+ * Create execution checkpoint
+ * @param {Object} pageState - Current page state
+ * @param {number} tabId - Tab ID
+ */
+export async function createCheckpoint(pageState, tabId) {
+  const state = await loadState(tabId);
+
+  return await updateState({
+    executionState: {
+      ...state.executionState,
+      checkpoint: {
+        beforeStepIndex: state.executionState.currentStepIndex,
+        pageState,
+        timestamp: Date.now()
+      }
+    }
+  }, tabId);
+}
+
+/**
+ * Start execution phase
+ * @param {number} tabId - Tab ID
+ */
+export async function startExecution(tabId) {
+  const state = await loadState(tabId);
+
+  return await updateState({
+    status: 'executing',
+    executionState: {
+      ...DEFAULT_EXECUTION_STATE,
+      totalSteps: state.currentPlan?.steps?.length || 0
+    }
+  }, tabId);
+}
+
+// ============================================================================
+// V2: Confidence Helpers
+// ============================================================================
+
+/**
+ * Calculate confidence zone based on overall score
+ * @param {number} confidence - Overall confidence 0-1
+ * @returns {string} 'ask' | 'assume_announce' | 'proceed'
+ */
+export function getConfidenceZone(confidence) {
+  if (confidence >= 0.9) return 'proceed';
+  if (confidence >= 0.5) return 'assume_announce';
+  return 'ask';
+}
+
+/**
+ * Check if we should ask for clarification
+ * @param {Object} confidence - Confidence breakdown
+ * @returns {boolean}
+ */
+export function shouldAsk(confidence) {
+  return getConfidenceZone(confidence.overall) === 'ask';
+}
+
+/**
+ * Check if we should assume and announce
+ * @param {Object} confidence - Confidence breakdown
+ * @returns {boolean}
+ */
+export function shouldAssumeAnnounce(confidence) {
+  return getConfidenceZone(confidence.overall) === 'assume_announce';
+}
+
+/**
+ * Check if we should proceed directly
+ * @param {Object} confidence - Confidence breakdown
+ * @returns {boolean}
+ */
+export function shouldProceed(confidence) {
+  return getConfidenceZone(confidence.overall) === 'proceed';
 }
 
 // ============================================================================

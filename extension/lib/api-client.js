@@ -249,3 +249,168 @@ export async function testConnection() {
   const health = await checkBackendHealth();
   return health.healthy;
 }
+
+// ============================================================================
+// V2: Confidence-Based Planning API
+// ============================================================================
+
+/**
+ * Get execution plan with confidence scoring (V2)
+ * @param {Object} params - Planning parameters
+ * @returns {Object} Plan with confidence scores, assumptions, and optional clarifying questions
+ */
+export async function getPlanWithConfidence(params) {
+  const {
+    task,
+    currentUrl,
+    elements,
+    screenshot,
+    conversationHistory = []
+  } = params;
+
+  const config = await loadConfig();
+
+  console.log('[APIClient] Requesting plan with confidence from backend');
+
+  try {
+    const response = await fetch(`${config.backendUrl}/api/plan-with-confidence`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        task,
+        currentUrl,
+        elements,
+        screenshot: config.includeScreenshots ? screenshot : undefined,
+        conversationHistory,
+        provider: config.provider
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+
+      if (error.requiresConfirmation) {
+        return {
+          error: true,
+          requiresConfirmation: true,
+          message: error.error || 'Suspicious content detected'
+        };
+      }
+
+      throw new Error(error.error || `Backend error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('[APIClient] Received plan with confidence:', result.confidence?.overall);
+
+    // Ensure result has expected structure
+    return {
+      plan: result.plan || result,
+      confidence: result.confidence || {
+        overall: 0.5,
+        intentClarity: 0.5,
+        targetMatch: 0.5,
+        valueConfidence: 0.5
+      },
+      assumptions: result.assumptions || [],
+      clarifyingQuestions: result.clarifyingQuestions || [],
+      planScore: result.planScore || result.confidence?.overall || 0.5
+    };
+
+  } catch (error) {
+    console.error('[APIClient] Plan with confidence request failed:', error);
+
+    // Fallback to regular plan endpoint if V2 endpoint not available
+    if (error.message.includes('404') || error.message.includes('Not Found')) {
+      console.log('[APIClient] Falling back to regular plan endpoint');
+      const plan = await getPlan(params);
+      return {
+        plan,
+        confidence: {
+          overall: plan.understood ? 0.7 : 0.3,
+          intentClarity: plan.understood ? 0.7 : 0.3,
+          targetMatch: plan.steps?.length > 0 ? 0.7 : 0.3,
+          valueConfidence: 0.5
+        },
+        assumptions: [],
+        clarifyingQuestions: plan.clarifyingQuestions || [],
+        planScore: plan.understood ? 0.7 : 0.3
+      };
+    }
+
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      throw new Error('Cannot reach backend server. Is it running at ' + config.backendUrl + '?');
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Refine an existing plan (V2 Self-Refine Loop)
+ * @param {Object} params - Refinement parameters
+ * @returns {Object} Refined plan with score
+ */
+export async function refinePlan(params) {
+  const {
+    plan,
+    feedback,
+    elements,
+    task
+  } = params;
+
+  const config = await loadConfig();
+
+  console.log('[APIClient] Requesting plan refinement from backend');
+
+  try {
+    const response = await fetch(`${config.backendUrl}/api/refine-plan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        plan,
+        feedback,
+        elements,
+        task,
+        provider: config.provider
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Backend error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('[APIClient] Received refined plan, score:', result.score);
+
+    return {
+      plan: result.plan || plan,
+      score: result.score || 0.5,
+      improvements: result.improvements || []
+    };
+
+  } catch (error) {
+    console.error('[APIClient] Plan refinement request failed:', error);
+
+    // If refine endpoint not available, return original plan
+    if (error.message.includes('404') || error.message.includes('Not Found')) {
+      console.log('[APIClient] Refine endpoint not available, returning original plan');
+      return {
+        plan,
+        score: plan.score || 0.5,
+        improvements: []
+      };
+    }
+
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      throw new Error('Cannot reach backend server. Is it running at ' + config.backendUrl + '?');
+    }
+
+    throw error;
+  }
+}
